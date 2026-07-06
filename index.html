@@ -13,8 +13,10 @@
     --stage:#20242b; --bar:#171a20; --bar-line:#2c313b;
     --ink:#e6e8ec; --ink-dim:#9aa3af; --paper:#fff;
     --brass:#d6a14a; --brass-hi:#e7b562; --sel:rgba(214,161,74,.40);
-    --hl:rgba(214,161,74,.45);
     --hl:rgba(214,161,74,.42);
+    --hl-line:rgba(214,161,74,.20);
+    --hl-word:rgba(214,161,74,.75);
+    --flow-font-scale:1;
     --font:"Noto Sans TC","Segoe UI",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
   }
   *{box-sizing:border-box}
@@ -94,7 +96,10 @@
   .shelf{width:100%;display:none}
   .shelf h2{font-size:17px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:10px}
   .shelf h2 .lamp{width:8px;height:8px;border-radius:50%;background:var(--brass);box-shadow:0 0 8px var(--brass)}
-  .shelf-usage{font-size:12px;color:var(--ink-dim);font-weight:400;margin-left:auto}
+  .shelf-usage{font-size:12px;color:var(--ink-dim);font-weight:400}
+  .shelf-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .autosave-mini{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-dim);cursor:pointer;white-space:nowrap;font-weight:400}
+  @media (max-width:640px){.shelf-actions{gap:8px}.autosave-mini .t,.autosave-mini{font-size:11px}.shelf-actions .btn .t{display:none}}
   .shelf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:14px;margin-top:12px}
   .bookcard{position:relative;background:#1c212a;border:1px solid var(--bar-line);border-radius:12px;padding:10px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:7px}
   .bookcard:hover{border-color:var(--brass);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
@@ -148,8 +153,11 @@
 
   .sel{height:32px;background:#222732;border:1px solid var(--bar-line);color:var(--ink);border-radius:7px;font-size:12px;padding:0 6px;cursor:pointer;max-width:150px}
   .btn.playing{background:var(--brass);color:#1a1300;border-color:var(--brass);font-weight:600}
-  .textLayer span.spk{background:var(--hl);border-radius:2px}
-  ::highlight(read){background:var(--hl)}
+  .btn.on{background:var(--brass);color:#1a1300;border-color:var(--brass);font-weight:600}
+  .textLayer span.spk-line{background:var(--hl-line);border-radius:2px}
+  .textLayer span.spk{background:var(--hl-word);border-radius:2px}
+  ::highlight(read-line){background:var(--hl-line)}
+  ::highlight(read){background:var(--hl-word)}
   .read-trans{position:absolute;left:0;right:0;bottom:56px;z-index:28;background:rgba(17,20,25,.97);border-top:1px solid var(--bar-line);padding:9px 16px;display:none;height:22vh;overflow:auto}
   body.trans-open .stage{bottom:calc(56px + 22vh)}   /* page area shrinks so the bar doesn't cover content */
   .read-trans .rt-label{font-size:11px;color:var(--brass);letter-spacing:1px;margin-bottom:3px}
@@ -161,9 +169,10 @@
   /* ---------- flow 文件（docx / epub）排版 ---------- */
   .textLayer.flowtext{position:static;inset:auto;overflow:hidden;padding:52px 44px;box-sizing:border-box;
     color:#2b2a26;background:var(--paper);font-family:Georgia,"Noto Serif TC","PingFang TC",serif;
-    font-size:16px;line-height:1.75;text-align:justify;-webkit-user-select:text;user-select:text}
+    font-size:calc(16px*var(--flow-font-scale,1));line-height:1.75;text-align:justify;-webkit-user-select:text;user-select:text}
   .textLayer.flowtext span{position:static;color:inherit;white-space:normal;cursor:text}
-  .textLayer.flowtext span.spk{background:var(--hl);border-radius:2px}
+  .textLayer.flowtext span.spk-line{background:var(--hl-line);border-radius:2px}
+  .textLayer.flowtext span.spk{background:var(--hl-word);border-radius:2px}
   .textLayer.flowtext span.anno{cursor:pointer}
   .textLayer.flowtext h1,.textLayer.flowtext h2,.textLayer.flowtext h3{font-family:var(--font);color:#1a1300;line-height:1.35;margin:0 0 14px}
   .textLayer.flowtext h1{font-size:1.55em} .textLayer.flowtext h2{font-size:1.28em} .textLayer.flowtext h3{font-size:1.1em}
@@ -180,14 +189,14 @@
   .ocr-progress button{background:none;border:1px solid var(--bar-line);color:var(--ink-dim);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px}
   .anno-pop textarea{width:100%;height:66px;background:#1c212a;border:1px solid #333a47;color:var(--ink);border-radius:7px;padding:6px 8px;font-size:13px;resize:vertical;user-select:text}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;display:none;align-items:center;justify-content:center;padding:20px}
-  .modal{width:430px;max-width:94vw;background:#13161c;border:1px solid var(--bar-line);border-radius:14px;padding:22px;color:var(--ink)}
+  .modal{width:430px;max-width:94vw;max-height:86vh;overflow-y:auto;background:#13161c;border:1px solid var(--bar-line);border-radius:14px;padding:22px;color:var(--ink)}
   .modal h3{margin:0 0 2px;font-size:16px}
   .modal p{margin:8px 0;font-size:12px;color:var(--ink-dim);line-height:1.7}
   .modal label{display:block;font-size:12px;color:var(--ink-dim);margin:12px 0 5px}
   .modal input{width:100%;height:38px;background:#1c212a;border:1px solid var(--bar-line);color:var(--ink);border-radius:8px;padding:0 10px;font-size:13px;user-select:text}
   .modal select{width:100%;height:38px;background:#1c212a;border:1px solid var(--bar-line);color:var(--ink);border-radius:8px;padding:0 8px;font-size:13px}
   .modal code{background:#0e1116;border:1px solid var(--bar-line);border-radius:6px;padding:2px 6px;font-size:11px;color:var(--brass-hi);user-select:text;word-break:break-all;display:inline-block;margin-top:4px}
-  .modal .actions{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
+  .modal .actions{display:flex;gap:10px;margin:18px -22px -22px;justify-content:flex-end;position:sticky;bottom:0;background:#13161c;padding:14px 22px;border-top:1px solid var(--bar-line)}
 
   /* table of contents drawer */
   .drawer{position:absolute;top:54px;bottom:56px;left:0;width:330px;max-width:84vw;background:#13161c;border-right:1px solid var(--bar-line);transform:translateX(-101%);transition:transform .22s ease;z-index:45;display:flex;flex-direction:column}
@@ -264,6 +273,7 @@
     <button class="btn" id="searchBtn" title="搜尋這本書 (/)" disabled><span class="ico">🔎</span><span class="t">搜尋</span></button>
     <button class="btn" id="bmBtn" title="書籤這一頁 (B)" disabled><span class="ico">🔖</span><span class="t">書籤</span></button>
     <button class="btn" id="ocrBtn" title="這本書是掃描圖片，點此辨識文字以啟用朗讀/翻譯" style="display:none"><span class="ico">🔍</span><span class="t">辨識文字</span></button>
+    <button class="btn" id="reflowBtn" title="切換成大字流式排版（重排模式）" style="display:none"><span class="ico">🔤</span><span class="t">重排模式</span></button>
     <button class="btn" id="exportBtn" title="匯出生字清單／筆記" disabled><span class="ico">📤</span><span class="t">匯出</span></button>
     <div class="seg" title="檢視方式">
       <button class="btn" id="viewSingle">單頁</button>
@@ -278,6 +288,11 @@
       <button class="btn" id="fitW" title="符合寬度">寬</button>
       <button class="btn" id="fitP" title="符合頁面">整頁</button>
     </div>
+    <select class="sel" id="shapeSel" title="頁面形狀（適合圖片較寬的書）" style="display:none">
+      <option value="auto">形狀：自動</option>
+      <option value="portrait">形狀：直式</option>
+      <option value="landscape">形狀：橫式（寬）</option>
+    </select>
     <button class="btn" id="fsBtn" title="全螢幕"><span class="ico">⛶</span></button>
     <button class="btn" id="helpBtn" title="鍵盤快捷鍵"><span class="ico">⌨</span></button>
     <input type="file" id="fileInput" accept=".pdf,.docx,.epub,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip" hidden>
@@ -309,15 +324,19 @@
   <div class="empty" id="empty">
     <div class="empty-inner">
       <div class="shelf" id="shelf">
-        <h2><span class="lamp"></span>我的書櫃 <span class="shelf-usage" id="shelfUsage"></span></h2>
+        <h2><span class="lamp"></span>我的書庫 <span class="shelf-usage" id="shelfUsage"></span>
+          <span class="shelf-actions">
+            <label class="autosave-mini" title="開啟的書要不要自動存進書庫"><input type="checkbox" id="autoSaveChk" checked> 自動存檔</label>
+            <button class="btn primary" id="openBtn2"><span class="ico">📂</span><span class="t">開啟新檔案</span></button>
+          </span>
+        </h2>
         <div class="shelf-grid" id="shelfGrid"></div>
       </div>
       <div class="drop" id="drop">
         <div class="big">📖</div>
         <h1>開啟一本書來閱讀</h1>
         <p>支援 PDF、Word（.docx）、EPUB。把檔案拖進來，或按下方按鈕選擇。<br>檔案只在妳的瀏覽器中開啟，不會上傳到任何地方。</p>
-        <button class="btn primary open" id="openBtn2"><span class="ico">📂</span> 選擇檔案</button>
-        <label class="autosave"><input type="checkbox" id="autoSaveChk" checked> 開啟的書自動存入書櫃（存在這台裝置的瀏覽器裡）</label>
+        <button class="btn primary open" id="openBtnFirstRun"><span class="ico">📂</span> 選擇檔案</button>
         <div class="hint">真實書本翻頁 · 放大縮小 · 選取文字即時翻譯<br>鍵盤：← → 翻頁　·　Ctrl + / − 縮放　·　拖曳可平移放大後的頁面</div>
       </div>
     </div>
@@ -360,24 +379,16 @@
       <option value="1.2">1.2x</option><option value="1.5">1.5x</option>
     </select>
     <select class="sel" id="voiceSel" title="語音"></select>
-    <select class="sel" id="hlSel" title="朗讀標示顏色">
-      <option value="rgba(214,161,74,.42)">標示：琥珀</option>
-      <option value="rgba(255,224,80,.55)">標示：黃</option>
-      <option value="rgba(130,220,150,.5)">標示：綠</option>
-      <option value="rgba(120,180,255,.55)">標示：藍</option>
-      <option value="rgba(255,150,200,.55)">標示：粉</option>
-      <option value="rgba(180,150,255,.55)">標示：紫</option>
+    <select class="sel" id="hlSel" title="朗讀標示顏色（句子淡色＋目前字深色）">
+      <option value="rgba(214,161,74,.45)">標示：琥珀</option>
+      <option value="rgba(245,222,90,.55)">標示：黃</option>
+      <option value="rgba(125,212,148,.45)">標示：綠</option>
+      <option value="rgba(120,170,255,.45)">標示：藍</option>
+      <option value="rgba(255,140,190,.45)">標示：粉</option>
+      <option value="rgba(190,150,255,.48)">標示：紫</option>
+      <option value="rgba(255,255,255,.18)">標示：淡灰</option>
     </select>
     <button class="btn" id="ttsGear" title="雲端語音設定">⚙</button>
-    <select class="sel" id="hlSel" title="朗讀句子底色">
-      <option value="rgba(214,161,74,.45)">底色：琥珀</option>
-      <option value="rgba(245,222,90,.55)">底色：黃</option>
-      <option value="rgba(125,212,148,.45)">底色：綠</option>
-      <option value="rgba(120,170,255,.45)">底色：藍</option>
-      <option value="rgba(255,140,190,.45)">底色：粉</option>
-      <option value="rgba(190,150,255,.48)">底色：紫</option>
-      <option value="rgba(255,255,255,.18)">底色：淡灰</option>
-    </select>
     <div class="pagebox">第 <input type="number" id="pageNum" min="1" value="1"> / <span id="pageTotal">–</span> 頁</div>
     <div class="chapter-time" id="chapterTimeBox" title="依目前朗讀語速粗估，僅供參考"></div>
     <div class="slider"><input type="range" id="pageSlider" min="1" max="1" value="1"></div>
@@ -499,13 +510,14 @@ if(IS_MOBILE && lsGet('reader_view','')===''){ viewMode='single'; }   // phones 
 
 /* ---------- file ---------- */
 const openPicker=()=>$('fileInput').click();
-$('openBtn').onclick=openPicker; $('openBtn2').onclick=openPicker;
+$('openBtn').onclick=openPicker; $('openBtn2').onclick=openPicker; $('openBtnFirstRun').onclick=openPicker;
 $('fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(f)openAnyFile(f);});
 ['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();if(ev==='dragleave'&&e.relatedTarget)return;drop.classList.remove('over');}));
 document.addEventListener('drop',e=>{e.preventDefault();const f=[...(e.dataTransfer?.files||[])].find(x=>/\.(pdf|docx|epub)$/i.test(x.name||''));if(f)openAnyFile(f);else if(e.dataTransfer?.files?.length)toast('請拖入 PDF、Word（.docx）或 EPUB 檔案');});
 
 function extOf(name){ const m=/\.([a-z0-9]+)$/i.exec(name||''); return m?m[1].toLowerCase():''; }
+let loadToken=0;   // 每次開檔動作的序號，避免上一次還沒載入完就被下一次開檔打斷、兩邊互相汙染全域狀態
 async function openAnyFile(file,fromLib=false){
   const ext=extOf(file.name);
   if(ext==='docx') return loadFlowFile(file,'docx',fromLib);
@@ -515,12 +527,18 @@ async function openAnyFile(file,fromLib=false){
 
 async function loadFile(file,fromLib=false){
   if(!pdfjsLib){toast('PDF 引擎載入失敗，請確認已連上網路');return;}
+  const myToken=++loadToken;                 // 防止載入到一半又被另一次開檔動作打斷、兩邊互相汙染全域狀態
   showLoading('開啟「'+file.name+'」…');
   try{
     const buf=await file.arrayBuffer();
+    if(myToken!==loadToken)return;           // 載入這份檔案的過程中，使用者已經開始開別的書了，這次直接放棄
     docType='pdf'; flowPages=[]; flowToc=[]; flowRawBlocks=[];
     $('ocrBtn').style.display='none'; isScannedPdf=false;
+    reflowMode=false; savedPdfState=null; $('reflowBtn').style.display='none'; $('reflowBtn').classList.remove('on');
+    $('shapeSel').style.display='none';
+    if(reading)stopReading(); clearHL();
     pdfDoc=await pdfjsLib.getDocument({data:buf}).promise;
+    if(myToken!==loadToken)return;
     totalPages=pdfDoc.numPages;
     fileKey='pg_'+file.name+'_'+file.size;
     loadAnno(); loadBookmarks(); resetSearchIndex();
@@ -534,17 +552,21 @@ async function loadFile(file,fromLib=false){
     curPage=Math.min(Math.max(1,saved),totalPages);
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook();
+    if(myToken!==loadToken)return;
     await detectScanned();
+    if(myToken!==loadToken)return;
     await buildTOC();
+    if(myToken!==loadToken)return;
     if(!fromLib && $('autoSaveChk').checked) saveToLibrary(file);   // 存原始檔（File 本身就是 Blob，直接進 IndexedDB）
     else if(fromLib) libTouch(fileKey);
   }catch(err){console.error(err);toast('無法開啟這個 PDF：'+(err?.message||err));}
-  finally{hideLoading();}
+  finally{ if(myToken===loadToken) hideLoading(); }
 }
 
 /* ---------- docx / epub → 流式分頁文件 ---------- */
 let flowRawBlocks=[];               // 目前這本 flow 文件的原始 block 陣列（縮放/resize 時用來重新分頁）
 async function loadFlowFile(file,kind,fromLib=false){
+  const myToken=++loadToken;                 // 防止載入到一半又被另一次開檔動作打斷、兩邊互相汙染全域狀態
   showLoading('正在轉換「'+file.name+'」…');
   try{
     docType='pdf'; // 先暫時保持，成功後再切換，避免中途出錯時狀態卡在 flow
@@ -552,6 +574,7 @@ async function loadFlowFile(file,kind,fromLib=false){
     if(kind==='docx'){
       if(!window.mammoth){toast('Word 轉換引擎載入失敗，請確認已連上網路');return;}
       const buf=await file.arrayBuffer();
+      if(myToken!==loadToken)return;
       const res=await mammoth.convertToHtml({arrayBuffer:buf});
       blocks=htmlToBlocks(res.value);
     }else{
@@ -559,13 +582,16 @@ async function loadFlowFile(file,kind,fromLib=false){
       const r=await convertEpub(file);
       blocks=r.blocks;
     }
+    if(myToken!==loadToken)return;
     if(!blocks.length){toast('這個檔案裡沒有找到可顯示的內容');return;}
     docType='flow'; pdfDoc=null;
     flowRawBlocks=blocks;
     fileKey='pg_'+file.name+'_'+file.size;
     loadAnno(); loadBookmarks(); resetSearchIndex();
+    detectedFlowShape=detectFlowShape(blocks);
     showLoading('正在為「'+file.name+'」分頁…');
-    const {pages,headingMap}=await paginateBlocks(blocks.slice());
+    const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
+    if(cancelled||myToken!==loadToken)return;
     flowPages=pages; flowToc=headingMap; totalPages=flowPages.length;
     $('filename').textContent=file.name;
     $('pageTotal').textContent=totalPages;
@@ -573,16 +599,20 @@ async function loadFlowFile(file,kind,fromLib=false){
     empty.style.display='none';
     imgCache.clear(); ocrMemCache.clear();
     $('ocrBtn').style.display='none'; isScannedPdf=false;
+    reflowMode=false; savedPdfState=null; $('reflowBtn').style.display='none'; $('reflowBtn').classList.remove('on');
+    $('shapeSel').style.display=''; $('shapeSel').value=flowPageShape;
+    if(reading)stopReading(); clearHL();
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     const saved=parseInt(lsGet(fileKey,'1'))||1;
     curPage=Math.min(Math.max(1,saved),totalPages);
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook();
+    if(myToken!==loadToken)return;
     buildTOC();
     if(!fromLib && $('autoSaveChk').checked) saveToLibrary(file);
     else if(fromLib) libTouch(fileKey);
   }catch(err){console.error(err);toast('無法開啟這個檔案：'+(err?.message||err));}
-  finally{hideLoading();}
+  finally{ if(myToken===loadToken) hideLoading(); }
 }
 
 /* 把 mammoth 產生的 HTML 轉成統一的 block 陣列 */
@@ -592,28 +622,55 @@ function htmlToBlocks(html){
   doc.body.childNodes.forEach(n=>walkBlockNode(n,blocks));
   return blocks;
 }
+function cleanText(s){ return (s||'').replace(/\s+/g,' ').trim(); }
 function walkBlockNode(n,blocks){
   if(n.nodeType!==1)return;
   const tag=n.tagName.toLowerCase();
+  if(tag==='svg'){
+    const img=n.querySelector&&n.querySelector('image');
+    if(img){
+      const href=img.getAttribute('xlink:href')||img.getAttributeNS&&img.getAttributeNS('http://www.w3.org/1999/xlink','href')||img.getAttribute('href');
+      if(href)blocks.push({type:'img',src:href});
+    }
+    return;
+  }
   if(/^h[1-6]$/.test(tag)){
-    const t=(n.textContent||'').trim(); if(t)blocks.push({type:tag==='h1'?'h1':(tag==='h2'?'h2':'h3'),text:t});
+    const t=cleanText(n.textContent); if(t)blocks.push({type:tag==='h1'?'h1':(tag==='h2'?'h2':'h3'),text:t});
   }else if(tag==='p'){
     const img=n.querySelector&&n.querySelector('img');
-    if(img&&img.src)blocks.push({type:'img',src:img.src});
-    const t=(n.textContent||'').trim();
+    if(img){ const src=img.getAttribute('src'); if(src)blocks.push({type:'img',src}); }
+    const svgImg=n.querySelector&&n.querySelector('svg image');
+    if(svgImg){
+      const href=svgImg.getAttribute('xlink:href')||svgImg.getAttributeNS&&svgImg.getAttributeNS('http://www.w3.org/1999/xlink','href')||svgImg.getAttribute('href');
+      if(href)blocks.push({type:'img',src:href});
+    }
+    const t=cleanText(n.textContent);
     if(t)blocks.push({type:'p',text:t});
   }else if(tag==='blockquote'){
-    const t=(n.textContent||'').trim(); if(t)blocks.push({type:'blockquote',text:t});
+    const t=cleanText(n.textContent); if(t)blocks.push({type:'blockquote',text:t});
   }else if(tag==='li'){
-    const t=(n.textContent||'').trim(); if(t)blocks.push({type:'li',text:'• '+t});
+    const nested=n.querySelector&&n.querySelector('ul,ol');
+    let ownText;
+    if(nested){
+      // 這個項目底下還有巢狀子清單（常見於 EPUB 目錄）：只取「這一項自己」的文字，
+      // 子項目交給下面遞迴處理，各自成為獨立項目，不要全部黏成一大串
+      const clone=n.cloneNode(true);
+      const nestedInClone=clone.querySelector('ul,ol');
+      if(nestedInClone)nestedInClone.remove();
+      ownText=cleanText(clone.textContent);
+    }else{
+      ownText=cleanText(n.textContent);
+    }
+    if(ownText)blocks.push({type:'li',text:'• '+ownText});
+    if(nested)walkBlockNode(nested,blocks);
   }else if(tag==='ul'||tag==='ol'){
     n.childNodes.forEach(k=>walkBlockNode(k,blocks));
   }else if(tag==='img'){
-    if(n.src)blocks.push({type:'img',src:n.src});
+    const src=n.getAttribute('src'); if(src)blocks.push({type:'img',src});
   }else if(tag==='table'){
-    const t=(n.textContent||'').replace(/\s+/g,' ').trim(); if(t)blocks.push({type:'p',text:t});
+    const t=cleanText(n.textContent); if(t)blocks.push({type:'p',text:t});
   }else{
-    const t=(n.textContent||'').trim();
+    const t=cleanText(n.textContent);
     if(t && !(n.children&&n.children.length)) blocks.push({type:'p',text:t});
     else n.childNodes.forEach(k=>walkBlockNode(k,blocks));
   }
@@ -648,26 +705,74 @@ async function convertEpub(file){
         try{
           const imgPath=new URL(b.src,'https://x/'+path).pathname.replace(/^\//,'');
           const imgFile=zip.file(decodeURIComponent(imgPath));
-          if(imgFile){ const blob=await imgFile.async('blob'); b.src=await blobToDataURL(blob); }
+          if(imgFile){
+            let blob=await imgFile.async('blob');
+            const mime=guessImageMime(imgPath);
+            if(mime && blob.type!==mime){ try{ blob=blob.slice(0,blob.size,mime); }catch(e){} }
+            b.src=await blobToDataURL(blob);
+            try{
+              if(typeof createImageBitmap==='function'){
+                const bmp=await createImageBitmap(blob);
+                b.w0=bmp.width; b.h0=bmp.height;
+                if(bmp.close)bmp.close();
+              }
+            }catch(e){}
+          }
         }catch(e){ b.src=''; }
       }
     }
   }
   return {blocks};
 }
+function guessImageMime(path){
+  const m=/\.([a-z0-9]+)(?:\?.*)?$/i.exec(path||'');
+  const ext=m?m[1].toLowerCase():'';
+  return {jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',svg:'image/svg+xml',webp:'image/webp',bmp:'image/bmp'}[ext]||'';
+}
 function blobToDataURL(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); }); }
 
 /* ---------- 分頁引擎：用隱藏測量框把 blocks 切成一頁一頁 ---------- */
 function escHtmlFlow(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+let flowPageShape=lsGet('reader_flow_shape','auto');   // 'auto' | 'portrait' | 'landscape'
+let detectedFlowShape='portrait';
+function detectFlowShape(blocks){
+  const imgs=(blocks||[]).filter(b=>b.type==='img'&&b.w0&&b.h0);
+  if(imgs.length<2)return 'portrait';
+  const ratios=imgs.map(b=>b.w0/b.h0);
+  const avg=ratios.reduce((a,b)=>a+b,0)/ratios.length;
+  const wideCount=ratios.filter(r=>r>1.15).length;
+  // 圖片平均偏寬、而且大部分圖片都偏寬（不是只有一兩張跨頁圖），才判斷整本書適合橫式頁面
+  return (avg>1.2 && wideCount/ratios.length>0.55) ? 'landscape' : 'portrait';
+}
+function effectiveFlowShape(){ return flowPageShape==='auto' ? detectedFlowShape : flowPageShape; }
 function flowPageSize(){
   const availW=stage.clientWidth-90, availH=stage.clientHeight-60;
   const across=(viewMode==='spread')?2:1;
-  const w=Math.max(280,Math.min(680, availW/across));
+  const maxW=availW/across;
+  if(effectiveFlowShape()==='landscape'){
+    const targetRatio=1.35;                        // 寬:高，比較適合寬版圖表/圖片的頁面比例
+    let h=Math.min(availH, maxW/targetRatio);
+    let w=h*targetRatio;
+    w=Math.max(320,Math.min(maxW,920,w));
+    h=Math.max(260,Math.min(availH,w/targetRatio));
+    return {w:Math.floor(w), h:Math.floor(h)};
+  }
+  const w=Math.max(280,Math.min(680, maxW));
   const h=Math.max(320, availH);
   return {w:Math.floor(w), h:Math.floor(h)};
 }
-function blockToHTML(b){
-  if(b.type==='img') return b.src?'<img src="'+b.src+'">':'';
+function blockToHTML(b,forMeasure){
+  if(b.type==='img'){
+    if(!b.src)return '';
+    if(forMeasure){
+      // 量測階段只需要知道會佔多高，不需要真的塞進完整圖片資料——
+      // 圖片一多，反覆把完整 base64 塞進去重新解碼會非常慢（甚至像卡死）
+      let h=220;
+      if(b.w0&&b.h0){ const availW=Math.max(120,(curW||420)-88); h=Math.max(40,Math.min(900,Math.round(b.h0*(availW/b.w0)))); }
+      return '<div style="height:'+h+'px"></div>';
+    }
+    return '<img src="'+b.src+'">';
+  }
   const tag=({h1:'h1',h2:'h2',h3:'h3',blockquote:'blockquote',li:'li'})[b.type]||'p';
   return '<'+tag+'>'+escHtmlFlow(b.text||'')+'</'+tag+'>';
 }
@@ -706,7 +811,7 @@ function splitParagraphToFit(sizer,prefixHTML,tag,text){
   const restText=atoms.slice(best).join('').trim();
   return {fitText,restText};
 }
-async function paginateBlocks(blocks){
+async function paginateBlocks(blocks,cancelCheck){
   const {w,h}=flowPageSize();
   curW=w; curH=h;
   const sizer=ensureSizer(w,h);
@@ -716,8 +821,12 @@ async function paginateBlocks(blocks){
   let guard=0;
   while(queue.length){
     if(++guard>20000)break;                  // 安全防護，避免極端情況卡死
+    if(guard%40===0){
+      await new Promise(r=>setTimeout(r,0));   // 定期讓出主執行緒：避免長時間鎖住畫面（不然畫面會卡住沒反應、甚至看起來像閃爍），也讓下面的取消檢查真的有機會生效
+      if(cancelCheck && cancelCheck()) return {pages:[],headingMap:[],cancelled:true};   // 已經有更新的開檔動作，這次分頁提早放棄，不繼續浪費資源
+    }
     const blk=queue.shift();
-    const tryHTML=bufHTML+blockToHTML(blk);
+    const tryHTML=bufHTML+blockToHTML(blk,true);
     if(fitsInSizer(sizer,tryHTML)){
       buffer.push(blk); bufHTML=tryHTML; continue;
     }
@@ -737,7 +846,7 @@ async function paginateBlocks(blocks){
       continue;
     }
     if(buffer.length){ pages.push(buffer); buffer=[]; bufHTML=''; }
-    buffer.push(blk); bufHTML=blockToHTML(blk);
+    buffer.push(blk); bufHTML=blockToHTML(blk,true);
   }
   if(buffer.length) pages.push(buffer);
   headingMap.length=0;
@@ -746,8 +855,11 @@ async function paginateBlocks(blocks){
   }});});
   return {pages,headingMap};
 }
+let repaginating=false;
 async function repaginateFlow(){
   if(docType!=='flow'||!flowRawBlocks.length)return;
+  if(repaginating)return;      // 避免在還沒跑完時被重複觸發，疊加成連鎖重新分頁
+  repaginating=true;
   showLoading('視窗大小改變，重新分頁中…');
   try{
     const curFrac=totalPages>0?(curPage-1)/totalPages:0;
@@ -757,7 +869,7 @@ async function repaginateFlow(){
     curPage=Math.max(1,Math.min(totalPages,Math.round(curFrac*totalPages)+1));
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook(); buildTOC();
-  }catch(e){console.error(e);} finally{hideLoading();}
+  }catch(e){console.error(e);} finally{hideLoading(); repaginating=false;}
 }
 const LIB_DB='flipReaderLib', LIB_STORE='books', OCR_STORE='ocrPages';
 function libOpen(){return new Promise((res,rej)=>{const q=indexedDB.open(LIB_DB,2);
@@ -832,9 +944,10 @@ async function openFromLibrary(id){
 function escHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtMB(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';}
 async function renderShelf(){
-  const shelf=$('shelf'),grid=$('shelfGrid');
+  const shelf=$('shelf'),grid=$('shelfGrid'),dropZone=$('drop');
   let books=[]; try{books=await libAll()||[];}catch(e){}
-  if(!books.length){shelf.style.display='none';return;}
+  if(!books.length){shelf.style.display='none';dropZone.style.display='';return;}
+  dropZone.style.display='none';
   books.sort((a,b)=>(b.lastOpened||0)-(a.lastOpened||0));
   shelf.style.display='block'; grid.innerHTML='';
   for(const b of books){
@@ -929,7 +1042,7 @@ function renderFlowLeaf(idx,cls){
   const tl=document.createElement('div'); tl.className='textLayer flowtext';
   tl.style.width=curW+'px'; tl.style.height=curH+'px';
   flowPages[idx-1].forEach(b=>{
-    if(b.type==='img'){ if(b.src){ const im=document.createElement('img'); im.src=b.src; im.alt=''; tl.appendChild(im); } return; }
+    if(b.type==='img'){ if(b.src){ const im=document.createElement('img'); im.decoding='async'; im.loading='eager'; if(b.w0&&b.h0){ im.width=b.w0; im.height=b.h0; } im.src=b.src; im.alt=''; tl.appendChild(im); } return; }
     const tag=({h1:'h1',h2:'h2',h3:'h3',blockquote:'blockquote',li:'li'})[b.type]||'p';
     const el=document.createElement(tag);
     const text=b.text||'';
@@ -1029,7 +1142,7 @@ async function getPageText(idx){
 function invalidatePageText(idx){ pageTextCache.delete(idx); }
 
 /* ---------- 書內全文搜尋 ---------- */
-function resetSearchIndex(){ pageTextCache.clear(); searchIndexReady=false; searchIndexBuilding=false; $('searchResults').innerHTML=''; $('searchStatus').textContent=''; $('searchInput').value=''; }
+function resetSearchIndex(){ pageTextCache.clear(); searchIndexReady=false; searchIndexBuilding=false; $('searchResults').innerHTML=''; $('searchStatus').textContent=''; $('searchInput').value=''; lineTextCache.clear(); printedToc=[]; scannedToc=[]; }
 async function ensureSearchIndex(){
   if(searchIndexReady||searchIndexBuilding||!docLoaded())return;
   searchIndexBuilding=true;
@@ -1322,12 +1435,30 @@ $('pageNum').addEventListener('change',e=>{if(reading)stopReading();let n=parseI
 $('pageSlider').addEventListener('input',e=>{$('pageNum').value=e.target.value;});
 $('pageSlider').addEventListener('change',e=>{if(reading)stopReading();let n=parseInt(e.target.value)||1;if(viewMode==='spread'&&n%2===0&&n>1)n--;curPage=n;paintBook();});
 
-async function applyZoom(z){if(docType==='flow'){toast('文字書目前為固定版面，可用瀏覽器本身的縮放（Ctrl/⌘ + 滾輪）調整畫面大小');return;}if(reading)stopReading();zoom=Math.max(.4,Math.min(z,4));fitMode=null;lsSet('reader_zoom',String(zoom));imgCache.clear();if(pdfDoc)await paintBook();}
-$('zoomIn').onclick=()=>applyZoom(zoom+0.15);
-$('zoomOut').onclick=()=>applyZoom(zoom-0.15);
-$('fitW').onclick=async()=>{if(docType==='flow'){toast('文字書目前為固定版面，可用瀏覽器本身的縮放調整畫面大小');return;}if(reading)stopReading();fitMode='width';zoom=1;lsSet('reader_zoom','1');imgCache.clear();if(pdfDoc)await paintBook();};
-$('fitP').onclick=async()=>{if(docType==='flow'){toast('文字書目前為固定版面，可用瀏覽器本身的縮放調整畫面大小');return;}if(reading)stopReading();fitMode='page';zoom=1;lsSet('reader_zoom','1');imgCache.clear();if(pdfDoc)await paintBook();};
-stage.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();applyZoom(zoom+(e.deltaY<0?0.12:-0.12));}},{passive:false});
+let flowFontScale=parseFloat(lsGet('reader_flow_font','1'))||1;
+function setFlowFontScale(v){
+  flowFontScale=Math.max(0.7,Math.min(2.4,v));
+  lsSet('reader_flow_font',String(flowFontScale));
+  document.documentElement.style.setProperty('--flow-font-scale',String(flowFontScale));
+}
+setFlowFontScale(flowFontScale);
+$('shapeSel').value=flowPageShape;
+$('shapeSel').onchange=async()=>{
+  flowPageShape=$('shapeSel').value; lsSet('reader_flow_shape',flowPageShape);
+  if(docType==='flow'&&flowRawBlocks.length){ await repaginateFlow(); toast('頁面形狀：'+(flowPageShape==='auto'?'自動（偵測為'+(detectedFlowShape==='landscape'?'橫式':'直式')+'）':(flowPageShape==='landscape'?'橫式':'直式'))); }
+};
+async function applyFlowZoom(delta){
+  if(reading)stopReading();
+  setFlowFontScale(flowFontScale+delta);
+  await repaginateFlow();
+  toast('字級 '+Math.round(flowFontScale*100)+'%');
+}
+async function applyZoom(z){if(reading)stopReading();zoom=Math.max(.4,Math.min(z,4));fitMode=null;lsSet('reader_zoom',String(zoom));imgCache.clear();if(pdfDoc)await paintBook();}
+$('zoomIn').onclick=()=>{ if(docType==='flow')applyFlowZoom(0.12); else applyZoom(zoom+0.15); };
+$('zoomOut').onclick=()=>{ if(docType==='flow')applyFlowZoom(-0.12); else applyZoom(zoom-0.15); };
+$('fitW').onclick=async()=>{if(docType==='flow'){setFlowFontScale(1);await repaginateFlow();toast('字級已還原為 100%');return;}if(reading)stopReading();fitMode='width';zoom=1;lsSet('reader_zoom','1');imgCache.clear();if(pdfDoc)await paintBook();};
+$('fitP').onclick=async()=>{if(docType==='flow'){setFlowFontScale(1);await repaginateFlow();toast('字級已還原為 100%');return;}if(reading)stopReading();fitMode='page';zoom=1;lsSet('reader_zoom','1');imgCache.clear();if(pdfDoc)await paintBook();};
+stage.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault(); if(docType==='flow')applyFlowZoom(e.deltaY<0?0.08:-0.08); else applyZoom(zoom+(e.deltaY<0?0.12:-0.12));}},{passive:false});
 
 function setView(mode){if(reading)stopReading();viewMode=mode;lsSet('reader_view',mode);if(mode==='spread'&&curPage%2===0&&curPage>1)curPage--;imgCache.clear();if(docType==='flow'&&flowRawBlocks.length)repaginateFlow();else if(pdfDoc)paintBook();else syncControls();}
 $('viewSingle').onclick=()=>setView('single');
@@ -1341,6 +1472,13 @@ const playBtn=$('playBtn'),stopBtn=$('stopBtn'),voiceSel=$('voiceSel'),rateSel=$
 let engine=lsGet('tts_engine','gtranslate');
 let rate=parseFloat(lsGet('reader_rate','1'))||1;
 let voices=[],builtinVoice=null,elevenVoices=[];
+function pickZhVoice(){
+  return voices.find(x=>/^zh-TW/i.test(x.lang))
+      || voices.find(x=>/zh.*TW|TW.*zh/i.test(x.lang+' '+(x.name||'')))
+      || voices.find(x=>/^zh-HK/i.test(x.lang))
+      || voices.find(x=>/^zh/i.test(x.lang))
+      || null;
+}
 let reading=false,paused=false,readPage=1;
 let sentences=[],sIdx=0,curAudio=null;
 const audioCache=new Map();
@@ -1353,6 +1491,14 @@ const GOOGLE_VOICES=[
   {id:'en-US-Studio-O', label:'Google 美式女聲 Studio O'},
   {id:'en-GB-Neural2-A',label:'Google 英式女聲 A'},
   {id:'en-GB-Neural2-B',label:'Google 英式男聲 B'},
+];
+const GOOGLE_VOICES_ZH=[
+  {id:'cmn-TW-Wavenet-A',label:'Google 台灣國語女聲 A（WaveNet，推薦）'},
+  {id:'cmn-TW-Wavenet-B',label:'Google 台灣國語男聲 B（WaveNet，推薦）'},
+  {id:'cmn-TW-Wavenet-C',label:'Google 台灣國語男聲 C（WaveNet，推薦）'},
+  {id:'cmn-TW-Standard-A',label:'Google 台灣國語女聲 A（標準）'},
+  {id:'cmn-TW-Standard-B',label:'Google 台灣國語男聲 B（標準）'},
+  {id:'cmn-TW-Standard-C',label:'Google 台灣國語男聲 C（標準）'},
 ];
 
 if(!synth&&engine==='builtin'){ /* builtin unavailable; cloud still ok */ }
@@ -1372,7 +1518,7 @@ function populateVoiceSel(){
   if(engine==='builtin') list=voices.map(v=>({id:v.voiceURI,label:v.name+' ('+v.lang+')'}));
   else if(engine==='gtranslate') list=[{id:'auto',label:'自動：英文／中文'}];
   else if(engine==='local') list=[{id:'auto',label:'自動：英文／中文（依 ⚙ 設定）'}];
-  else if(engine==='google') list=GOOGLE_VOICES;
+  else if(engine==='google') list=[{id:'auto',label:'自動：英文／中文（依下方 ⚙ 設定）'}];
   else if(engine==='eleven') list=elevenVoices.length?elevenVoices:[{id:'',label:'（請在 ⚙ 設定載入語音）'}];
   if(!list.length) list=[{id:'',label:'（無可用語音）'}];
   list.forEach(v=>{const o=document.createElement('option');o.value=v.id;o.textContent=v.label;voiceSel.appendChild(o);});
@@ -1390,8 +1536,9 @@ populateVoiceSel();
 /* ---- cloud synthesis ---- */
 async function googleTTS(text){
   const key=keyFor('google'); if(!key)throw new Error('缺少 Google API 金鑰');
-  const voice=lsGet('tts_voice_google','en-US-Neural2-F');
-  const lang=voice.split('-').slice(0,2).join('-');
+  const zh=hasCJK(text);
+  const voice=zh?lsGet('tts_google_zh','cmn-TW-Wavenet-A'):lsGet('tts_google_en','en-US-Neural2-F');
+  const lang=zh?'cmn-TW':voice.split('-').slice(0,2).join('-');
   const r=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key='+encodeURIComponent(key),{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({input:{text},voice:{languageCode:lang,name:voice},audioConfig:{audioEncoding:'MP3',speakingRate:rate}})});
@@ -1465,19 +1612,35 @@ function computeBounds(full){
 }
 /* split a run of body lines into sentences (each keeps the full line-spans it covers) */
 function splitBodySpans(items, sep){
+  const autoGap = sep===undefined;   // 沒有明確指定分隔符時，依實際間距自動判斷；旋轉頁等特殊情況會明確傳入固定字元
   if(sep===undefined)sep=' ';
   let full='';const map=[];
-  items.forEach(it=>{const start=full.length;full+=it.t;const end=full.length;full+=sep;if(it.t.trim())map.push({sp:it.sp,start,end});});
+  items.forEach((it,i)=>{
+    const start=full.length;full+=it.t;const end=full.length;
+    let g=sep, noGap=(sep==='');
+    if(autoGap){
+      const nxt=items[i+1];
+      if(nxt){
+        const fs=it.fs||nxt.fs||12;
+        const sameLine=Math.abs((nxt.top||0)-(it.top||0))<fs*0.6;
+        // 兩個文字區塊緊接在一起（間距小於約 1/5 字高，甚至輕微重疊）——多半是同一個字被拆成兩個技術性區塊，中間不該有空白
+        const gap=sameLine?(nxt.left||0)-((it.left||0)+(it.width||0)):Infinity;
+        if(sameLine && gap<fs*0.2 && gap>-fs*0.6){ g=''; noGap=true; }
+      }
+    }
+    if(it.t.trim())map.push({sp:it.sp,start,end,noGapAfter:noGap});
+    full+=g;
+  });
   const res=[];
   computeBounds(full).forEach(([a,b])=>{
     const text=full.slice(a,b).trim(); if(!text)return;
     const inside=map.filter(m=>m.start<b&&m.end>a); if(!inside.length)return;
-    const parts=inside.map(m=>{
+    const parts=inside.map((m,idx)=>{
       const len=(m.sp.textContent||'').length;
       const so=Math.max(0,Math.min(len, a-m.start));
       const eo=Math.max(0,Math.min(len, b-m.start));
-      return {span:m.sp, so, eo};
-    }).filter(p=>p.eo>p.so);
+      return {span:m.sp, so, eo, joinNext: idx<inside.length-1 && !!m.noGapAfter};
+    }).filter(p=>p.eo>p.so || p.joinNext);
     res.push({ text, spans:inside.map(m=>m.sp), startSpan:inside[0].sp, parts });
   });
   return res;
@@ -1496,18 +1659,18 @@ function spanGeom(sp, tlr){
     try{
       const r=sp.getBoundingClientRect();
       if(r && (r.width>0 || r.height>0))
-        return { top:r.top-tlr.top, left:r.left-tlr.left, fs:r.height };
+        return { top:r.top-tlr.top, left:r.left-tlr.left, fs:r.height, width:r.width };
     }catch(e){}
   }
   const px=s=>{ const m=/(-?\d+(?:\.\d+)?)px/.exec(s||''); return m?parseFloat(m[1]):0; };
   const st=sp.style||{};
-  return { top:px(st.top), left:px(st.left), fs:px(st.fontSize) };
+  return { top:px(st.top), left:px(st.left), fs:px(st.fontSize), width:0 };
 }
 function buildSentences(spans, tl){
   const tlr=(tl&&tl.getBoundingClientRect)?tl.getBoundingClientRect():null;
   const pageH=(tlr&&tlr.height)||(tl&&tl.offsetHeight)||curH||0;
   const items=spans.map(sp=>{ const g=spanGeom(sp,tlr);
-    return { sp, t:(sp.textContent||''), fs:g.fs, top:g.top, left:g.left }; })
+    return { sp, t:(sp.textContent||''), fs:g.fs, top:g.top, left:g.left, width:g.width }; })
     .filter(x=>x.t.length);
   if(!items.length)return [];
   // rotated (landscape-table) page detection: pdf.js marks angled text with
@@ -1597,38 +1760,57 @@ function tokenize(txt){
   }
   return out;
 }
-/* build DOM ranges for the words/chars of THIS sentence only (using its precise per-span ranges) */
+/* build DOM ranges for the words of THIS sentence — tokenize the FULL sentence text FIRST
+   (not part-by-part), so a word that the PDF happens to split across two spans/parts
+   (common in justified text, where kerning adjustments break up a run mid-word)
+   still comes out as ONE whole word instead of two broken fragments. */
 function wordRanges(parts){
-  const words=[];
-  (parts||[]).forEach(p=>{
-    const sp=p.span, node=sp&&sp.firstChild;
+  if(!parts||!parts.length)return [];
+  let full=''; const map=[];   // map[i] -> {node,pos,span}：full 這個字元實際對應到的 DOM 文字節點/位移（合成的分隔空白對應 null，tokenize 本來就會跳過空白，不會被取用到）
+  parts.forEach((p,idx)=>{
+    const node=p.span&&p.span.firstChild;
     if(!node||node.nodeType!==3)return;
     const whole=node.nodeValue||'';
     const so=Math.max(0,Math.min(whole.length,p.so)), eo=Math.max(so,Math.min(whole.length,p.eo));
-    const seg=whole.slice(so,eo);
-    for(const t of tokenize(seg)) words.push({ node, so:so+t.s, eo:so+t.e, span:sp, text:seg.slice(t.s,t.e) });
+    for(let k=so;k<eo;k++) map.push({node,pos:k,span:p.span});
+    full+=whole.slice(so,eo);
+    if(idx<parts.length-1 && !p.joinNext){ full+=' '; map.push(null); }   // 對應原本片段之間本來就存在的分隔空白；p.joinNext 表示這其實是同一個字被拆成兩段，不該插入空白
+  });
+  const words=[];
+  tokenize(full).forEach(t=>{
+    if(t.s>=map.length)return;
+    const endIdx=Math.min(t.e,map.length)-1;
+    if(endIdx<t.s)return;
+    const startInfo=map[t.s], endInfo=map[endIdx];
+    if(!startInfo||!endInfo)return;    // 理論上不會落在合成空白上（tokenize 本身就會跳過空白），保險起見還是擋一下
+    words.push({
+      startNode:startInfo.node, startPos:startInfo.pos,
+      endNode:endInfo.node, endPos:endInfo.pos+1,
+      span:startInfo.span,
+      text: full.slice(t.s,t.e)
+    });
   });
   return words;
 }
-let curWords=[], readHi=null;
+let curWords=[], readHi=null, readLineHi=null;
 /* highlight exactly one word (the one currently being spoken) */
 function setWordHi(idx){
-  clearHL();
+  clearWordHL();
   const w=curWords[idx]; if(!w)return;
   let ok=false;
   if(('highlights' in CSS)&&typeof Highlight!=='undefined'){
     try{
-      const r=document.createRange(); r.setStart(w.node,w.so); r.setEnd(w.node,w.eo);
-      if(!readHi){ readHi=new Highlight(); CSS.highlights.set('read',readHi); }
+      const r=document.createRange(); r.setStart(w.startNode,w.startPos); r.setEnd(w.endNode,w.endPos);
+      if(!readHi){ readHi=new Highlight(); readHi.priority=2; CSS.highlights.set('read',readHi); }
       readHi.clear(); readHi.add(r); ok=true;
     }catch(e){}
   }
   if(!ok && w.span) w.span.classList.add('spk');   // fallback: light the word's fragment
-  ensureVisible(w.span);
+  ensureVisible(w.span||(w.startNode&&w.startNode.parentElement));
 }
 /* fallback used by chunked Google-Translate voice: light the whole line(s) */
 function highlightLines(s){
-  clearHL();
+  clearWordHL();
   const spans=(s.spans||[]).filter(Boolean);
   if(!spans.length)return;
   const rectFor=new Map();
@@ -1645,9 +1827,37 @@ function highlightLines(s){
     [...tl.querySelectorAll('span')].forEach(sp=>{ const t=geo(sp).top; if(t>=minTop&&t<=maxTop) sp.classList.add('spk'); });
   });
 }
-function clearHL(){
+function clearWordHL(){
   if(readHi)readHi.clear();
   document.querySelectorAll('.textLayer span.spk').forEach(e=>e.classList.remove('spk'));
+}
+function clearSentenceHL(){
+  if(readLineHi)readLineHi.clear();
+  document.querySelectorAll('.textLayer span.spk-line').forEach(e=>e.classList.remove('spk-line'));
+}
+function clearHL(){ clearWordHL(); clearSentenceHL(); }
+/* 整句淡色底：用精確字元範圍（跟單字高亮同一套 Highlight API），不是整個 span 上色 ——
+   避免 PDF 文字層把好幾句話包在同一個大 span 裡時，淡色底把不相干的文字也一起染色 */
+function setSentenceHL(s){
+  if(!s)return;
+  let ok=false;
+  if(('highlights' in CSS)&&typeof Highlight!=='undefined'){
+    try{
+      if(!readLineHi){ readLineHi=new Highlight(); readLineHi.priority=1; CSS.highlights.set('read-line',readLineHi); }
+      readLineHi.clear();
+      (s.parts||[]).forEach(p=>{
+        const node=p.span&&p.span.firstChild;
+        if(!node||node.nodeType!==3)return;
+        const len=(node.nodeValue||'').length;
+        const so=Math.max(0,Math.min(len,p.so)), eo=Math.max(so,Math.min(len,p.eo));
+        if(eo<=so)return;
+        const r=document.createRange(); r.setStart(node,so); r.setEnd(node,eo);
+        readLineHi.add(r);
+      });
+      ok=true;
+    }catch(e){}
+  }
+  if(!ok){ (s.spans||[]).forEach(sp=>{ if(sp) sp.classList.add('spk-line'); }); }  // 沒有 Highlight API 的舊瀏覽器才退回整個 span 上色
 }
 /* keep the reading sentence in view, vertically only, scrolling as little as possible */
 function ensureVisible(el){
@@ -1838,10 +2048,49 @@ function gtChunks(text){
   return out;
 }
 async function playGTranslate(text,tk){
-  for(const c of gtChunks(text)){
+  const chunks=gtChunks(text);
+  const words=curWords||[];
+  if(!words.length){
+    for(const c of chunks){
+      if(!reading||(tk!==undefined&&tk!==readToken))return;
+      await gatePause(); if(!reading||(tk!==undefined&&tk!==readToken))return;
+      await playAudioEl(gtURL(c.text,c.lang));
+    }
+    return;
+  }
+  // 估算每個字在整句文字裡的概略字元位置（用字數累加近似即可，不需要完全精確）
+  let pos=0;
+  const wordMid=words.map(w=>{ const m=pos+w.text.length/2; pos+=w.text.length+1; return m; });
+  const totalLen=Math.max(1,pos);
+  // 找出每個 chunk 對應到整句文字的字元範圍
+  let charPos=0;
+  const chunkRanges=chunks.map(c=>{
+    const found=text.indexOf(c.text,charPos);
+    const from=found>=0?found:charPos;
+    const to=from+c.text.length;
+    charPos=to;
+    return {from,to};
+  });
+  const totalChars=Math.max(1,charPos);
+  let lastWi=-1;
+  for(let ci=0;ci<chunks.length;ci++){
     if(!reading||(tk!==undefined&&tk!==readToken))return;
     await gatePause(); if(!reading||(tk!==undefined&&tk!==readToken))return;
-    await playAudioEl(gtURL(c.text,c.lang));
+    const cr=chunkRanges[ci];
+    // 這個 chunk 大概涵蓋整句的哪幾個字（用字元位置比例對應）
+    let idxList=words.map((_,i)=>i).filter(i=>{
+      const charEquiv=(wordMid[i]/totalLen)*totalChars;
+      return charEquiv>=cr.from-1 && charEquiv<cr.to+1;
+    });
+    if(!idxList.length) idxList=[Math.min(words.length-1,Math.round((cr.from/totalChars)*words.length))];
+    const onTime=(t,d)=>{
+      if(tk!==readToken)return;
+      if(!d){ if(lastWi<0){lastWi=idxList[0];setWordHi(lastWi);} return; }
+      const p=Math.max(0,Math.min(1,t/d));
+      const pick=idxList[Math.min(idxList.length-1,Math.floor(p*idxList.length))];
+      if(pick!==lastWi){ lastWi=pick; setWordHi(pick); }
+    };
+    await playAudioEl(gtURL(chunks[ci].text,chunks[ci].lang),onTime);
   }
 }
 let ttsFails=0;
@@ -1852,7 +2101,7 @@ async function speakSentence(text,preUrl,tk,s){
     return new Promise(res=>{
       const u=new SpeechSynthesisUtterance(text);
       const zh=hasCJK(text);
-      const v = zh ? (voices.find(x=>/^zh/i.test(x.lang))||builtinVoice)
+      const v = zh ? (pickZhVoice()||builtinVoice)
                    : (builtinVoice||voices.find(x=>/^en/i.test(x.lang)));
       if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; u.pitch=1;
       let wi=-1;
@@ -1861,7 +2110,7 @@ async function speakSentence(text,preUrl,tk,s){
       u.onend=res; u.onerror=res; synth.speak(u);
     });
   }
-  if(engine==='gtranslate'){ highlightLines(s); return playGTranslate(text,tk); }
+  if(engine==='gtranslate'){ return playGTranslate(text,tk); }
   // google / eleven / local — use the already-fetched url, prefetch the next one
   const url=preUrl||await getAudio(text);
   if(sentences[sIdx+1]) getAudio(sentences[sIdx+1].text).catch(()=>{});
@@ -1893,7 +2142,7 @@ async function playFrom(i,tk){
       try{ preUrl=await getAudio(s.text); }catch(e){ fetchErr=true; }
       if(!reading||tk!==readToken)return;
     }
-    clearHL();
+    clearWordHL(); clearSentenceHL(); setSentenceHL(s);
     ensureVisible(s.startSpan||(s.spans&&s.spans[0]));
     if(transOn) showReadTrans(s.text, sentences[i+1]&&sentences[i+1].text);
     try{
@@ -1941,7 +2190,18 @@ function readFromSpan(span){
   playFrom(idx,tk);
 }
 let clickReadTimer=null;
-document.addEventListener('dblclick',()=>{ clearTimeout(clickReadTimer); });  // 雙擊＝翻譯：取消待觸發的單擊跳讀
+document.addEventListener('dblclick',e=>{
+  clearTimeout(clickReadTimer);                    // 雙擊＝翻譯：取消待觸發的單擊跳讀
+  const sp=e.target.closest&&e.target.closest('.textLayer span');
+  if(!sp)return;
+  const spanText=(sp.textContent||'').trim();
+  if(isSingleWordSelection(spanText)){
+    // 直接用這個 span 自己的文字和位置，不透過選取 API —— 避免兩端對齊段落裡文字層座標偏移導致選到隔壁的字
+    suppressNextSelectionWordCard=true;
+    hideTPop();
+    showWordCard(spanText, sp.getBoundingClientRect());
+  }
+});
 
 
 /* read the currently selected text aloud (uses current engine) */
@@ -1949,7 +2209,7 @@ async function speakSelection(text){
   if(!text)return;
   stopReading();
   try{
-    if(engine==='builtin'){ if(!synth)return; const u=new SpeechSynthesisUtterance(text); const zh=hasCJK(text); const v=zh?(voices.find(x=>/^zh/i.test(x.lang))||builtinVoice):(builtinVoice||voices.find(x=>/^en/i.test(x.lang))); if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; synth.speak(u); }
+    if(engine==='builtin'){ if(!synth)return; const u=new SpeechSynthesisUtterance(text); const zh=hasCJK(text); const v=zh?(pickZhVoice()||builtinVoice):(builtinVoice||voices.find(x=>/^en/i.test(x.lang))); if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; synth.speak(u); }
     else if(engine==='gtranslate'){ for(const c of gtChunks(text)){ await new Promise((res,rej)=>{const a=new Audio(gtURL(c.text,c.lang));a.onended=res;a.onerror=rej;a.play().catch(rej);}); } }
     else{ const url=await getAudio(text); new Audio(url).play(); }
   }catch(e){ toast('語音播放失敗，可改用內建語音'); }
@@ -1979,9 +2239,13 @@ function openTtsSettings(){
         +'啟動伺服器（Docker）：<br><code>docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest</code></p>'
         +'<p style="color:#caa15a">若朗讀時出現連線錯誤，多半是伺服器的 CORS 設定需允許跨來源請求；Kokoro‑FastAPI 預設通常已允許。</p>';
   }else if(engine==='google'){
-    html='<p>Google Cloud Text-to-Speech 提供自然的 Neural2／Studio 語音。需要妳自己的 API 金鑰；金鑰只會存在這台裝置的瀏覽器，並只直接送給 Google。</p>'
+    const gEn=lsGet('tts_google_en','en-US-Neural2-F');
+    const gZh=lsGet('tts_google_zh','cmn-TW-Wavenet-A');
+    html='<p>Google Cloud Text-to-Speech 提供自然的 Neural2／WaveNet 語音，中文會用台灣國語（cmn-TW）語音，不是大陸腔調。需要妳自己的 API 金鑰；金鑰只會存在這台裝置的瀏覽器，並只直接送給 Google。</p>'
         +'<label>Google API 金鑰</label><input id="ttsKey" type="password" placeholder="AIza..." value="'+keyFor('google').replace(/"/g,'&quot;')+'">'
-        +'<p>在 Google Cloud Console 啟用「Cloud Text-to-Speech API」並建立 API 金鑰即可。語速可用上方的速度選單調整。</p>';
+        +'<label>英文語音</label><select id="ttsGoogleEn">'+GOOGLE_VOICES.map(v=>'<option value="'+v.id+'"'+(v.id===gEn?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
+        +'<label>中文語音（台灣國語）</label><select id="ttsGoogleZh">'+GOOGLE_VOICES_ZH.map(v=>'<option value="'+v.id+'"'+(v.id===gZh?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
+        +'<p>會依每個句子自動判斷用英文或中文語音朗讀。在 Google Cloud Console 啟用「Cloud Text-to-Speech API」並建立 API 金鑰即可。語速可用上方的速度選單調整。</p>';
   }else if(engine==='eleven'){
     html='<p>ElevenLabs 提供最自然的語音。需要妳自己的 API 金鑰；金鑰只會存在這台裝置的瀏覽器，並只直接送給 ElevenLabs。</p>'
         +'<label>ElevenLabs API 金鑰</label><input id="ttsKey" type="password" placeholder="sk_..." value="'+keyFor('eleven').replace(/"/g,'&quot;')+'">'
@@ -2046,6 +2310,8 @@ $('ttsSave').onclick=()=>{
   const m=$('ttsLocalModel'); if(m)lsSet('tts_local_model',m.value.trim());
   const en=$('ttsLocalEn'); if(en)lsSet('tts_local_en',en.value.trim());
   const zh=$('ttsLocalZh'); if(zh)lsSet('tts_local_zh',zh.value.trim());
+  const gEn=$('ttsGoogleEn'); if(gEn)lsSet('tts_google_en',gEn.value);
+  const gZh=$('ttsGoogleZh'); if(gZh)lsSet('tts_google_zh',gZh.value);
   const trU=$('trLocalUrl'); if(trU)lsSet('tr_local_url',trU.value.trim());
   const trT=$('trLocalTarget'); if(trT)lsSet('tr_local_target',trT.value);
   const tsel=$('trSource'); if(tsel){ transSource=tsel.value; lsSet('tr_source',transSource); }
@@ -2144,6 +2410,17 @@ async function buildTOC(){
   let outline=null;
   try{ outline=await pdfDoc.getOutline(); }catch(e){}
   if(!outline||!outline.length){
+    showLoading('正在尋找書中的目錄頁…');
+    try{ await getOrBuildPrintedToc(false); }catch(e){}
+    hideLoading();
+    if(printedToc.length){
+      tocFlat=printedToc.slice().sort((a,b)=>a.page-b.page);
+      renderFlatTocList(printedToc);
+      tocList.insertAdjacentHTML('afterbegin','<div class="toc-empty" style="padding:10px 14px;font-size:11.5px">📖 這是從書中「目錄」頁解析出來的章節連結。頁碼是自動比對的，若有一兩處落點不準，可用底部頁碼欄位微調。</div>');
+      $('tocBtn').disabled=false; $('searchBtn').disabled=false; $('bmBtn').disabled=false; $('exportBtn').disabled=false;
+      openableToc=true; updateChapterTime();
+      return;
+    }
     if(isScannedPdf){
       try{ await buildScannedToc(false); }catch(e){}
       if(scannedToc.length){
@@ -2155,7 +2432,7 @@ async function buildTOC(){
         return;
       }
     }
-    tocList.innerHTML='<div class="toc-empty">這份 PDF 沒有內建目錄書籤，無法自動產生章節連結。'+(isScannedPdf?'<br><br>辨識完文字後，這裡會嘗試自動猜出章節目錄。':'')+'<br><br>妳仍可用底部的頁碼欄位或翻頁鍵直接前往任何一頁。</div>';
+    tocList.innerHTML='<div class="toc-empty">這份 PDF 沒有內建目錄書籤，也沒有找到可解析的「目錄」頁。'+(isScannedPdf?'<br><br>辨識完文字後，這裡會嘗試自動找出章節目錄。':'')+'<br><br>妳仍可用底部的頁碼欄位或翻頁鍵直接前往任何一頁。</div>';
     $('tocBtn').disabled=false;   // still allow opening to see the message
     $('searchBtn').disabled=false; $('bmBtn').disabled=false; $('exportBtn').disabled=false;
     openableToc=true;
@@ -2179,8 +2456,8 @@ window.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
   if(e.key==='ArrowRight'||e.key==='PageDown')turnTo(1);
   else if(e.key==='ArrowLeft'||e.key==='PageUp')turnTo(-1);
-  else if((e.ctrlKey||e.metaKey)&&(e.key==='='||e.key==='+')){e.preventDefault();applyZoom(zoom+0.15);}
-  else if((e.ctrlKey||e.metaKey)&&e.key==='-'){e.preventDefault();applyZoom(zoom-0.15);}
+  else if((e.ctrlKey||e.metaKey)&&(e.key==='='||e.key==='+')){e.preventDefault(); if(docType==='flow')applyFlowZoom(0.12); else applyZoom(zoom+0.15);}
+  else if((e.ctrlKey||e.metaKey)&&e.key==='-'){e.preventDefault(); if(docType==='flow')applyFlowZoom(-0.12); else applyZoom(zoom-0.15);}
   else if(e.key==='/'){ if(docLoaded()){ e.preventDefault(); switchDrawerTab('search'); openDrawer(); setTimeout(()=>$('searchInput').focus(),80); } }
   else if(e.key==='b'||e.key==='B'){ if(docLoaded()) toggleBookmark(); }
   else if(e.key==='?'){ e.preventDefault(); $('helpModal').style.display='flex'; }
@@ -2202,6 +2479,7 @@ tpop.addEventListener('mousedown',()=>{popPinned=true;});
 document.addEventListener('mouseup',e=>{if(tpop.contains(e.target))return;setTimeout(handleSelection,0);});
 const hasCJK=s=>/[\u3400-\u9FBF\uF900-\uFAFF\u3040-\u30FF]/.test(s);
 function isSingleWordSelection(text){ return /^[A-Za-z][A-Za-z'-]{0,29}$/.test(text); }
+let suppressNextSelectionWordCard=false;
 function handleSelection(){
   const sel=window.getSelection();
   const text=sel?sel.toString().trim():'';
@@ -2209,7 +2487,11 @@ function handleSelection(){
   if(!sel.rangeCount)return;
   const r=sel.getRangeAt(0).getBoundingClientRect();
   if(r.width===0&&r.height===0)return;
-  if(isSingleWordSelection(text)){ hideTPop(); showWordCard(text,r); return; }
+  if(isSingleWordSelection(text)){
+    if(suppressNextSelectionWordCard){ suppressNextSelectionWordCard=false; return; }  // 雙擊已經用 span 本身文字精準處理過了，這裡不要用可能有座標偏移的選取結果覆蓋
+    hideTPop(); showWordCard(text,r); return;
+  }
+  suppressNextSelectionWordCard=false;
   hideWordCard();
   lastSel=text;
   let left=Math.max(8,Math.min(r.left+r.width/2-150,window.innerWidth-308));
@@ -2465,9 +2747,28 @@ let toastT;function toast(m){toastEl.textContent=m;toastEl.style.display='block'
 
 /* sentence highlight colour */
 const hlSel=$('hlSel');
-function applyHL(c){document.documentElement.style.setProperty('--hl',c);}
+function applyHL(c){
+  document.documentElement.style.setProperty('--hl',c);
+  const m=/rgba?\(([^)]+)\)/.exec(c);
+  if(m){
+    const parts=m[1].split(',').map(s=>s.trim());
+    const r=parts[0],g=parts[1],b=parts[2];
+    const baseA=parts[3]!==undefined?parseFloat(parts[3]):0.4;
+    const lineA=Math.max(0.12,Math.min(0.26,baseA*0.5));
+    const wordA=Math.min(0.88,baseA+0.35);
+    document.documentElement.style.setProperty('--hl-line','rgba('+r+','+g+','+b+','+lineA.toFixed(2)+')');
+    document.documentElement.style.setProperty('--hl-word','rgba('+r+','+g+','+b+','+wordA.toFixed(2)+')');
+  }else{
+    document.documentElement.style.setProperty('--hl-line',c);
+    document.documentElement.style.setProperty('--hl-word',c);
+  }
+}
 const savedHL=lsGet('reader_hl','rgba(214,161,74,.45)');
 applyHL(savedHL); hlSel.value=savedHL; if(hlSel.selectedIndex<0)hlSel.selectedIndex=0;
+hlSel.onchange=()=>{
+  applyHL(hlSel.value); lsSet('reader_hl',hlSel.value);
+  const h2=$('hlSel2'); if(h2)h2.value=hlSel.value;
+};
 /* ---------- OCR（給沒有文字層的掃描版 PDF 用）---------- */
 const OCR_LANGS='eng+chi_tra';
 let ocrWorkerPromise=null;
@@ -2513,6 +2814,113 @@ function injectOcrSpans(tl,rec){
   });
 }
 /* 抽樣偵測目前這本 PDF 是不是掃描版（完全沒有文字層） */
+/* ---------- 解析書本真正的「目錄／Contents」頁（比字體大小猜測準確很多，且一般 PDF 也適用）---------- */
+let printedToc=[];
+async function getOrBuildPrintedToc(forceRebuild){
+  if(!forceRebuild && fileKey){
+    try{ const rec=await libGet(fileKey); if(rec&&rec.printedToc&&rec.printedToc.length){ printedToc=rec.printedToc; return printedToc; } }catch(e){}
+  }
+  printedToc=await extractPrintedToc();
+  if(printedToc.length && fileKey){ try{ const rec=await libGet(fileKey); if(rec){ rec.printedToc=printedToc; await libPut(rec); } }catch(e){} }
+  return printedToc;
+}
+const TOC_LINE_RE=/^(.{2,90}?)\s+(\d{1,4})\s*$/;
+const TOC_HEAD_TEST=/(table of contents|^contents$|contents\s*$|目錄|目次)/i;
+function levelFromTitle(title){
+  const m=/^(\d+(?:\.\d+)*)/.exec(title.trim());
+  if(!m)return 0;
+  return Math.min(3,(m[1].match(/\./g)||[]).length);
+}
+function clusterPdfItemsIntoLines(items){
+  if(!items.length)return [];
+  const sorted=[...items].sort((a,b)=>b.y-a.y);     // PDF 座標 Y 越大越靠上，要由上到下先降冪排序
+  const lines=[]; let cur=[sorted[0]];
+  for(let i=1;i<sorted.length;i++){
+    const it=sorted[i], prev=cur[cur.length-1];
+    const avgH=((it.h||10)+(prev.h||10))/2||10;
+    if(Math.abs(it.y-prev.y)<avgH*0.5) cur.push(it); else { lines.push(cur); cur=[it]; }
+  }
+  lines.push(cur);
+  return lines.map(l=>{ l.sort((a,b)=>a.x-b.x); return l.map(w=>w.text).join('').replace(/\s+/g,' ').trim(); }).filter(Boolean);
+}
+const lineTextCache=new Map();
+async function getPageLines(idx){
+  if(lineTextCache.has(idx))return lineTextCache.get(idx);
+  let lines=[];
+  if(docType==='flow'){
+    lines=(flowPages[idx-1]||[]).filter(b=>b.text).map(b=>b.text);
+  }else if(pdfDoc&&idx>=1&&idx<=totalPages){
+    try{
+      const page=await pdfDoc.getPage(idx);
+      const tc=await page.getTextContent();
+      if(tc.items&&tc.items.length){
+        const items=tc.items.filter(it=>it.str).map(it=>({text:it.str,x:it.transform[4],y:it.transform[5],h:it.height||10}));
+        lines=clusterPdfItemsIntoLines(items);
+      }
+    }catch(e){}
+    if(!lines.length){
+      const rec=ocrMemCache.get(idx)||await ocrGetRec(fileKey+'_'+idx).catch(()=>null);
+      if(rec&&rec.words&&rec.words.length) lines=clusterWordsIntoLines(rec.words).map(l=>l.text);
+    }
+  }
+  lineTextCache.set(idx,lines);
+  return lines;
+}
+function pageTocSignal(lines){
+  if(!lines.length)return {heading:false,density:0,matches:0};
+  const edge=(lines[0]||'')+' '+(lines[lines.length-1]||'');
+  const heading=TOC_HEAD_TEST.test(edge);
+  const matches=lines.filter(l=>TOC_LINE_RE.test(l.trim())).length;
+  return {heading,density:matches/lines.length,matches};
+}
+function normTitleForMatch(s){ return s.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g,''); }
+async function findTitleStartingFrom(title,fromPage,toPage){
+  const target=normTitleForMatch(title.replace(/^\d+(\.\d+)*\s*/,''));
+  if(target.length<3)return null;
+  for(let i=fromPage;i<=toPage;i++){
+    const lines=await getPageLines(i);
+    const whole=normTitleForMatch(lines.join(' '));
+    if(whole.includes(target))return i;
+  }
+  return null;
+}
+async function extractPrintedToc(){
+  const scanLimit=Math.min(totalPages,120);
+  let startPage=-1;
+  for(let i=1;i<=scanLimit;i++){
+    const sig=pageTocSignal(await getPageLines(i));
+    if(sig.heading&&sig.matches>=1){ startPage=i; break; }
+  }
+  if(startPage<0)return [];
+  const tocPages=[startPage];
+  for(let i=startPage+1;i<=scanLimit;i++){
+    const sig=pageTocSignal(await getPageLines(i));
+    if(sig.heading||sig.density>=0.4) tocPages.push(i); else break;
+  }
+  const rawEntries=[];
+  for(const p of tocPages){
+    for(const line of await getPageLines(p)){
+      const m=TOC_LINE_RE.exec(line.trim()); if(!m)continue;
+      const title=m[1].replace(/[.·‧・、_\-\s]+$/,'').trim();
+      const num=parseInt(m[2],10);
+      if(!title||!/[a-zA-Z\u4e00-\u9fff]/.test(title))continue;
+      if(isNaN(num)||num<1||num>totalPages*3)continue;
+      if(TOC_HEAD_TEST.test(title))continue;         // 排掉「Table of contents vii」這種頁首本身
+      const level=levelFromTitle(title);
+      if(level>1)continue;                            // 只留章／主要小節，太細的子項目略過（目錄才不會長到滑不完，比對成功率也更高）
+      rawEntries.push({title,statedPage:num,level});
+    }
+  }
+  if(rawEntries.length<3)return [];
+  let searchFrom=Math.max(...tocPages)+1;
+  const result=[];
+  for(const entry of rawEntries){
+    const found=await findTitleStartingFrom(entry.title,searchFrom,Math.min(totalPages,searchFrom+500));
+    if(found){ result.push({title:entry.title,page:found,level:entry.level}); searchFrom=found; }
+  }
+  return result;
+}
+
 /* ---------- 掃描版 PDF 自動猜目錄（依 OCR 文字的行高/長度粗略判斷標題）---------- */
 let scannedToc=[];
 function clusterWordsIntoLines(words){
@@ -2541,6 +2949,89 @@ function detectHeadingLines(rec){
       && l.height>=median*1.25 && !/^[\d.\s\-–—]+$/.test(l.text))
     .map((l,i)=>({title:l.text,height:l.height,order:i}));
 }
+/* ---------- 重排模式：把 OCR 結果轉成段落／標題 blocks，餵給既有的 flow 排版引擎 ---------- */
+function ocrRecToBlocks(rec,pageIdx){
+  const lines=clusterWordsIntoLines(rec.words);
+  if(!lines.length)return [];
+  const heights=lines.map(l=>l.height).sort((a,b)=>a-b);
+  const median=heights[Math.floor(heights.length/2)]||1;
+  const blocks=[]; let buf=[]; let prevBottom=null;
+  const flush=()=>{ if(buf.length){ blocks.push({type:'p',text:buf.join(' ').replace(/\s+/g,' ').trim(),srcPage:pageIdx}); buf=[]; } };
+  lines.forEach(l=>{
+    const text=l.text.trim(); if(!text)return;
+    const isHeading=l.wordCount<=14 && text.length>=2 && text.length<=70 && l.height>=median*1.25 && !/^[\d.\s\-–—]+$/.test(text);
+    const bottom=l.y0+l.height;
+    if(isHeading){
+      flush();
+      blocks.push({type:l.height>=median*1.6?'h1':'h2', text, srcPage:pageIdx});
+      prevBottom=bottom; return;
+    }
+    if(prevBottom!=null && (l.y0-prevBottom) > median*0.9) flush();   // 行距明顯變大，視為換段
+    buf.push(text);
+    prevBottom=bottom;
+  });
+  flush();
+  return blocks;
+}
+async function buildOcrFlowBlocks(){
+  const blocks=[];
+  for(let i=1;i<=totalPages;i++){
+    const rec=ocrMemCache.get(i)||await ocrGetRec(fileKey+'_'+i).catch(()=>null);
+    if(!rec||!rec.words||!rec.words.length)continue;
+    blocks.push(...ocrRecToBlocks(rec,i));
+  }
+  return blocks;
+}
+let reflowMode=false, savedPdfState=null, reflowPageToPdf=[];
+async function enterReflowMode(){
+  if(docType!=='pdf'||!isScannedPdf){ toast('這本書不是掃描版，用不到重排模式'); return; }
+  const myToken=++loadToken;
+  showLoading('正在整理重排內容…');
+  try{
+    let blocks=null;
+    try{ const rec=await libGet(fileKey); if(rec&&rec.reflowBlocks&&rec.reflowBlocks.length) blocks=rec.reflowBlocks; }catch(e){}
+    if(myToken!==loadToken)return;
+    if(!blocks){
+      blocks=await buildOcrFlowBlocks();
+      if(myToken!==loadToken)return;
+      if(blocks.length<3){ toast('目前辨識的文字太少，請先按「辨識文字」完成整本 OCR 再試'); hideLoading(); return; }
+      try{ const rec=await libGet(fileKey); if(rec){ rec.reflowBlocks=blocks; await libPut(rec); } }catch(e){}
+    }
+    detectedFlowShape=detectFlowShape(blocks);
+    const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
+    if(cancelled||myToken!==loadToken)return;
+    const pageToPdf=pages.map(blks=>{ const sp=blks.map(b=>b.srcPage).filter(x=>x!=null); return sp.length?Math.min(...sp):1; });
+    savedPdfState={ pdfDoc, totalPages, curPage };
+    docType='flow'; reflowMode=true;
+    $('shapeSel').style.display=''; $('shapeSel').value=flowPageShape;
+    flowRawBlocks=blocks; flowPages=pages; flowToc=headingMap; reflowPageToPdf=pageToPdf;
+    totalPages=flowPages.length;
+    let startIdx=1;
+    for(let i=0;i<pageToPdf.length;i++){ if(pageToPdf[i]<=savedPdfState.curPage) startIdx=i+1; else break; }
+    curPage=Math.max(1,Math.min(totalPages,startIdx));
+    if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
+    resetSearchIndex(); imgCache.clear();
+    $('ocrBtn').style.display='none';
+    $('reflowBtn').classList.add('on'); $('reflowBtn').title='離開重排模式，回到原始掃描頁面';
+    await paintBook(); buildTOC();
+    toast('已切換到重排模式，可以自由調整字級大小了 🔎');
+  }catch(e){ console.error(e); toast('重排模式初始化失敗：'+(e&&e.message||e)); }
+  finally{ if(myToken===loadToken) hideLoading(); }
+}
+async function exitReflowMode(){
+  if(!reflowMode||!savedPdfState)return;
+  const srcPage=reflowPageToPdf[curPage-1]||savedPdfState.curPage||1;
+  docType='pdf'; pdfDoc=savedPdfState.pdfDoc; totalPages=savedPdfState.totalPages;
+  $('shapeSel').style.display='none';
+  curPage=Math.max(1,Math.min(totalPages,srcPage));
+  if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
+  reflowMode=false; savedPdfState=null;
+  resetSearchIndex(); imgCache.clear();
+  $('reflowBtn').classList.remove('on'); $('reflowBtn').title='切換成大字流式排版（重排模式）';
+  await paintBook(); await detectScanned(); buildTOC();
+  toast('已回到原始掃描頁面');
+}
+$('reflowBtn').onclick=()=>{ if(reflowMode)exitReflowMode(); else enterReflowMode(); };
 async function buildScannedToc(forceRebuild){
   if(!forceRebuild && fileKey){
     try{ const rec=await libGet(fileKey); if(rec&&rec.scannedToc&&rec.scannedToc.length){ scannedToc=rec.scannedToc; return scannedToc; } }catch(e){}
@@ -2568,13 +3059,13 @@ async function buildScannedToc(forceRebuild){
 }
 
 async function detectScanned(){
-  isScannedPdf=false; $('ocrBtn').style.display='none';
+  isScannedPdf=false; $('ocrBtn').style.display='none'; $('reflowBtn').style.display='none';
   if(docType!=='pdf'||!pdfDoc)return;
   try{
     const n=totalPages, samples=[1,Math.ceil(n/2),n].filter((v,i,a)=>v>=1&&v<=n&&a.indexOf(v)===i);
     let hasText=false;
     for(const i of samples){ const p=await pdfDoc.getPage(i); const tc=await p.getTextContent(); if(tc.items.length){hasText=true;break;} }
-    if(!hasText){ isScannedPdf=true; $('ocrBtn').style.display=''; }
+    if(!hasText){ isScannedPdf=true; $('ocrBtn').style.display=''; $('reflowBtn').style.display=''; }
   }catch(e){}
 }
 /* 整本 OCR（背景依序處理，Tesseract 本身在 Web Worker 執行，不會卡住畫面） */
@@ -2600,7 +3091,8 @@ async function runBatchOcr(){
       if(!ocrBatchCancel){
         isScannedPdf=true; await markLibraryOcrComplete();
         showLoading('正在嘗試自動產生目錄…');
-        try{ await buildScannedToc(true); if(fileKey===myFileKey) await buildTOC(); }catch(e){}
+        lineTextCache.clear();
+        try{ await getOrBuildPrintedToc(true); if(!printedToc.length) await buildScannedToc(true); if(fileKey===myFileKey) await buildTOC(); }catch(e){}
         hideLoading();
       }
     }
