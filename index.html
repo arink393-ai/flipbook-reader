@@ -818,12 +818,15 @@ async function paginateBlocks(blocks,cancelCheck){
   const pages=[]; const headingMap=[];
   let buffer=[]; let bufHTML='';
   const queue=blocks.slice();
+  const totalBlocks=queue.length;
   let guard=0;
   while(queue.length){
     if(++guard>20000)break;                  // 安全防護，避免極端情況卡死
-    if(guard%40===0){
-      await new Promise(r=>setTimeout(r,0));   // 定期讓出主執行緒：避免長時間鎖住畫面（不然畫面會卡住沒反應、甚至看起來像閃爍），也讓下面的取消檢查真的有機會生效
+    if(guard%12===0){
+      await new Promise(r=>setTimeout(r,0));   // 更頻繁地讓出主執行緒：避免長時間鎖住畫面（不然畫面會卡住沒反應、甚至看起來像閃爍），也讓下面的取消檢查真的有機會生效
       if(cancelCheck && cancelCheck()) return {pages:[],headingMap:[],cancelled:true};   // 已經有更新的開檔動作，這次分頁提早放棄，不繼續浪費資源
+      const pct=Math.min(99,Math.round((totalBlocks-queue.length)/Math.max(1,totalBlocks)*100));
+      updateLoadingProgress(pct);
     }
     const blk=queue.shift();
     const tryHTML=bufHTML+blockToHTML(blk,true);
@@ -1065,17 +1068,23 @@ function renderFlowLeaf(idx,cls){
 }
 
 /* resting render of current spread/page (selectable) */
+let paintToken=0;
 async function paintBook(){
   if(!docLoaded())return;
+  const myPaint=++paintToken;                     // 快速連續翻頁時，只讓「最新」的一次重繪上畫面，舊的直接放棄
+  const render=docType==='flow' ? (i,c)=>renderFlowLeaf(i,c) : (i,c)=>renderLeaf(i,c);
+  // 雙緩衝：先在畫面外把新頁面完整渲染好，這段期間舊頁面保持顯示——避免「先清空再慢慢畫」造成翻頁瞬間整頁空白閃爍
+  const leaves=[];
+  if(viewMode==='spread'&&totalPages>1){
+    leaves.push(await render(curPage,'left'));
+    leaves.push(await render(curPage+1,'right'));
+  }else{
+    leaves.push(await render(curPage,'single'));
+  }
+  if(myPaint!==paintToken)return;                 // 渲染期間已經有更新的翻頁動作，這次不上畫面
   book.className='book'+(viewMode==='spread'?' spread':'');
   book.innerHTML='';
-  const render=docType==='flow' ? (i,c)=>renderFlowLeaf(i,c) : (i,c)=>renderLeaf(i,c);
-  if(viewMode==='spread'&&totalPages>1){
-    book.appendChild(await render(curPage,'left'));
-    book.appendChild(await render(curPage+1,'right'));
-  }else{
-    book.appendChild(await render(curPage,'single'));
-  }
+  leaves.forEach(l=>book.appendChild(l));
   syncControls();
   updateBookmarkRibbons();
   updateChapterTime();
@@ -1315,13 +1324,20 @@ async function turnTo(dir){
   if(docType==='flow'){                      // flow 文件：簡單滑動＋淡出淡入轉場（無 3D 翻頁）
     if(reduceMotion){curPage=target;await paintBook();return;}
     animating=true; hideTPop();
+    let a=null;
     try{
       const dx=fwd?-24:24;
-      const a=book.animate([{transform:'translateX(0)',opacity:1},{transform:'translateX('+dx+'px)',opacity:0}],{duration:150,easing:'ease-in',fill:'forwards'});
+      a=book.animate([{transform:'translateX(0)',opacity:1},{transform:'translateX('+dx+'px)',opacity:0}],{duration:150,easing:'ease-in',fill:'forwards'});
       await a.finished.catch(()=>{});
       curPage=target; await paintBook();
+      // 關鍵：先取消淡出動畫再開始淡入 —— fill:'forwards' 的動畫效果會永久留在元素上，
+      // 沒取消的話，淡入（無 fill）一結束效果被移除，殘留的「永久透明」就會接管，內容整個隱形
+      try{ a.cancel(); a=null; }catch(e){}
       book.animate([{transform:'translateX('+(-dx)+'px)',opacity:0},{transform:'translateX(0)',opacity:1}],{duration:180,easing:'ease-out'});
-    }finally{ animating=false; }
+    }finally{
+      try{ if(a) a.cancel(); }catch(e){}     // 保險：任何提早離開的路徑（例如重繪被更新的動作取代）也不能留下隱形效果
+      animating=false;
+    }
     return;
   }
   if(reduceMotion){curPage=target;await paintBook();return;}
@@ -1437,7 +1453,7 @@ $('pageSlider').addEventListener('change',e=>{if(reading)stopReading();let n=par
 
 let flowFontScale=parseFloat(lsGet('reader_flow_font','1'))||1;
 function setFlowFontScale(v){
-  flowFontScale=Math.max(0.7,Math.min(2.4,v));
+  flowFontScale=Math.max(0.7,Math.min(2.4,Math.round(v*100)/100));
   lsSet('reader_flow_font',String(flowFontScale));
   document.documentElement.style.setProperty('--flow-font-scale',String(flowFontScale));
 }
@@ -2743,6 +2759,11 @@ $('expNotesBtn').onclick=()=>{ $('exportModal').style.display='none'; exportNote
 /* ---------- helpers ---------- */
 function showLoading(t){loadingText.textContent=t||'載入中…';loading.style.display='flex';}
 function hideLoading(){loading.style.display='none';}
+function updateLoadingProgress(pct){
+  if(loading.style.display==='none')return;
+  const base=(loadingText.textContent||'').replace(/\s*[\d]+%$/,'');
+  loadingText.textContent=base+' '+pct+'%';
+}
 let toastT;function toast(m){toastEl.textContent=m;toastEl.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>toastEl.style.display='none',2600);}
 
 /* sentence highlight colour */
