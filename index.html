@@ -22,7 +22,8 @@
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;font-family:var(--font);color:var(--ink);background:var(--stage);overflow:hidden;-webkit-user-select:none;user-select:none}
-  button{font-family:inherit}
+  button{font-family:inherit;touch-action:manipulation}
+  select,input[type=range]{touch-action:manipulation}
 
   .topbar{height:54px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--bar);border-bottom:1px solid var(--bar-line);position:relative;z-index:30}
   .brand{font-weight:700;letter-spacing:.5px;font-size:15px;display:flex;align-items:center;gap:8px;margin-right:6px;white-space:nowrap}
@@ -295,7 +296,8 @@
     </select>
     <button class="btn" id="fsBtn" title="全螢幕"><span class="ico">⛶</span></button>
     <button class="btn" id="helpBtn" title="鍵盤快捷鍵"><span class="ico">⌨</span></button>
-    <input type="file" id="fileInput" accept=".pdf,.docx,.epub,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip" hidden>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.epub,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0">
+    <!-- 註：不能用 hidden / display:none —— iOS Safari 會拒絕對隱藏的檔案輸入框觸發選檔視窗 -->
   </div>
 
   <div class="drawer" id="drawer">
