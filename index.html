@@ -16,6 +16,8 @@
     --hl:rgba(214,161,74,.42);
     --hl-line:rgba(214,161,74,.20);
     --hl-word:rgba(214,161,74,.75);
+    --hl-line-solid:rgba(240,206,130,.5);
+    --hl-word-solid:rgba(232,182,90,.55);
     --flow-font-scale:1;
     --font:"Noto Sans TC","Segoe UI",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
   }
@@ -42,7 +44,8 @@
   .seg{display:flex;border:1px solid var(--bar-line);border-radius:8px;overflow:hidden}
   .seg .btn{border:none;border-radius:0;min-width:44px}
   .seg .btn.on{background:var(--brass);color:#1a1300}
-  .zoomlabel{font-size:13px;color:var(--ink-dim);min-width:46px;text-align:center}
+  .zoomlabel{font-size:13px;color:var(--ink-dim);min-width:54px;text-align:center}
+  .zoomlabel #zoomLabelA{font-weight:700;color:var(--ink);margin-right:3px;font-size:12px}
 
   .stage{position:absolute;inset:54px 0 56px 0;overflow:auto;
     background:radial-gradient(1200px 600px at 50% -10%,#2a2f38 0%,transparent 70%),var(--stage)}
@@ -159,6 +162,18 @@
   .textLayer span.spk{background:var(--hl-word);border-radius:2px}
   ::highlight(read-line){background:var(--hl-line)}
   ::highlight(read){background:var(--hl-word)}
+  /* 朗讀高亮改用實體 div 疊層（不用 CSS Custom Highlight API）——
+     Safari 不會重繪「被移除的自訂高亮」像素，導致舊句子的底色一路殘留；
+     用普通 DOM 疊層，每次更新移除舊 div、畫新 div，一定會正確重繪 */
+  .hl-overlay{position:absolute;inset:0;pointer-events:none;z-index:6}
+  .hl-rect{position:absolute;border-radius:2px;mix-blend-mode:multiply}
+  .hl-rect.line{background:var(--hl-line-solid)}
+  .hl-rect.word{background:var(--hl-word-solid)}
+  /* 朗讀進行中：把瀏覽器文字選取的反白設成透明 —— 朗讀時的高亮由我們自己畫，
+     瀏覽器殘留的選取（例如雙擊某句啟動朗讀時產生的）不該以藍色反白蓋在內容上 */
+  body.reading-on .textLayer.flowtext ::selection{background:transparent}
+  body.reading-on .textLayer.flowtext::selection{background:transparent}
+  body.reading-on .textLayer.flowtext *::selection{background:transparent}
   .read-trans{position:absolute;left:0;right:0;bottom:56px;z-index:28;background:rgba(17,20,25,.97);border-top:1px solid var(--bar-line);padding:9px 16px;display:none;height:22vh;overflow:auto}
   body.trans-open .stage{bottom:calc(56px + 22vh)}   /* page area shrinks so the bar doesn't cover content */
   .read-trans .rt-label{font-size:11px;color:var(--brass);letter-spacing:1px;margin-bottom:3px}
@@ -179,7 +194,9 @@
   .textLayer.flowtext h1{font-size:1.55em} .textLayer.flowtext h2{font-size:1.28em} .textLayer.flowtext h3{font-size:1.1em}
   .textLayer.flowtext p,.textLayer.flowtext blockquote,.textLayer.flowtext li{margin:0 0 14px}
   .textLayer.flowtext blockquote{padding-left:14px;border-left:3px solid var(--brass);color:#4a4740;font-style:italic}
-  .textLayer.flowtext img{max-width:100%;display:block;margin:6px auto 14px;border-radius:4px}
+  .textLayer.flowtext img{max-width:100%;max-height:calc(100% - 20px);object-fit:contain;display:block;margin:6px auto 14px;border-radius:4px}
+  .textLayer.flowtext.img-only{display:flex;align-items:center;justify-content:center;padding:20px}
+  .textLayer.flowtext.img-only img{max-height:100%;max-width:100%;margin:0}
   .flow-badge{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(20,22,27,.88);color:var(--brass-hi);
     border:1px solid var(--brass);border-radius:999px;padding:8px 16px;font-size:12.5px;cursor:pointer;z-index:5;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,.4)}
   .flow-badge:hover{background:rgba(30,33,40,.95)}
@@ -284,7 +301,7 @@
     <div class="filename" id="filename"></div>
     <div class="group">
       <button class="btn" id="zoomOut" title="縮小 (Ctrl -)"><span class="ico">－</span></button>
-      <div class="zoomlabel" id="zoomLabel">100%</div>
+      <div class="zoomlabel" id="zoomLabel"><span id="zoomLabelA" style="display:none">A</span><span id="zoomLabelNum">100%</span></div>
       <button class="btn" id="zoomIn" title="放大 (Ctrl +)"><span class="ico">＋</span></button>
       <button class="btn" id="fitW" title="符合寬度">寬</button>
       <button class="btn" id="fitP" title="符合頁面">整頁</button>
@@ -831,6 +848,17 @@ async function paginateBlocks(blocks,cancelCheck){
       updateLoadingProgress(pct);
     }
     const blk=queue.shift();
+    // 大圖（估計高度超過頁面一半，通常是封面或整頁插圖）獨佔一頁：
+    // 先把目前累積的內容收尾成一頁，這張圖自己一頁，後面內容從新的一頁開始
+    if(blk.type==='img'){
+      let ih=240;
+      if(blk.w0&&blk.h0){ const availW=Math.max(120,w-88); ih=Math.max(40,Math.round(blk.h0*(availW/blk.w0))); }
+      if(ih > h*0.5){
+        if(buffer.length){ pages.push(buffer); buffer=[]; bufHTML=''; }
+        pages.push([blk]);
+        continue;
+      }
+    }
     const tryHTML=bufHTML+blockToHTML(blk,true);
     if(fitsInSizer(sizer,tryHTML)){
       buffer.push(blk); bufHTML=tryHTML; continue;
@@ -1046,7 +1074,9 @@ function renderFlowLeaf(idx,cls){
   if(idx<1||idx>flowPages.length){leaf.classList.add('blank');leaf.style.width=curW+'px';leaf.style.height=curH+'px';return leaf;}
   const tl=document.createElement('div'); tl.className='textLayer flowtext';
   tl.style.width=curW+'px'; tl.style.height=curH+'px';
-  flowPages[idx-1].forEach(b=>{
+  const pageBlocks=flowPages[idx-1];
+  if(pageBlocks.length===1 && pageBlocks[0].type==='img'){ tl.classList.add('img-only'); }   // 整頁一張圖 → 置中撐大
+  pageBlocks.forEach(b=>{
     if(b.type==='img'){ if(b.src){ const im=document.createElement('img'); im.decoding='async'; im.loading='eager'; if(b.w0&&b.h0){ im.width=b.w0; im.height=b.h0; } im.src=b.src; im.alt=''; tl.appendChild(im); } return; }
     const tag=({h1:'h1',h2:'h2',h3:'h3',blockquote:'blockquote',li:'li'})[b.type]||'p';
     const el=document.createElement(tag);
@@ -1399,7 +1429,14 @@ async function turnTo(dir){
 function step(){return (viewMode==='spread'&&totalPages>1)?2:1;}
 function syncControls(){
   $('pageNum').value=curPage; $('pageSlider').value=curPage;
-  $('zoomLabel').textContent=Math.round(zoom*100)+'%';
+  const zA=$('zoomLabelA'), zN=$('zoomLabelNum');
+  if(docType==='flow'){
+    if(zA)zA.style.display=''; if(zN)zN.textContent=Math.round(flowFontScale*100)+'%';
+    $('zoomIn').title='放大字級'; $('zoomOut').title='縮小字級';
+  }else{
+    if(zA)zA.style.display='none'; if(zN)zN.textContent=Math.round(zoom*100)+'%';
+    $('zoomIn').title='放大 (Ctrl +)'; $('zoomOut').title='縮小 (Ctrl -)';
+  }
   $('prevArrow').disabled=curPage<=1;
   $('nextArrow').disabled=curPage+step()>totalPages&&curPage>=totalPages;
   $('viewSingle').classList.toggle('on',viewMode==='single');
@@ -1458,6 +1495,7 @@ function setFlowFontScale(v){
   flowFontScale=Math.max(0.7,Math.min(2.4,Math.round(v*100)/100));
   lsSet('reader_flow_font',String(flowFontScale));
   document.documentElement.style.setProperty('--flow-font-scale',String(flowFontScale));
+  if(docType==='flow'){ const n=$('zoomLabelNum'); if(n)n.textContent=Math.round(flowFontScale*100)+'%'; }
 }
 setFlowFontScale(flowFontScale);
 $('shapeSel').value=flowPageShape;
@@ -1805,77 +1843,96 @@ function wordRanges(parts){
       startNode:startInfo.node, startPos:startInfo.pos,
       endNode:endInfo.node, endPos:endInfo.pos+1,
       span:startInfo.span,
-      text: full.slice(t.s,t.e)
+      text: full.slice(t.s,t.e),
+      charStart: t.s,      // 這個詞在 full（＝tokenize 用的句子文字）裡的字元起點
+      charEnd: t.e
     });
   });
   return words;
 }
 let curWords=[], readHi=null, readLineHi=null;
+/* 取得某個 leaf 裡的高亮疊層容器（沒有就建一個） */
+function overlayFor(leaf){
+  if(!leaf)return null;
+  let ov=leaf.querySelector(':scope > .hl-overlay');
+  if(!ov){ ov=document.createElement('div'); ov.className='hl-overlay'; leaf.appendChild(ov); }
+  return ov;
+}
+/* 把一個 Range 拆成一行一行的矩形，畫成 div 疊到它所屬的 leaf 上 */
+function paintRange(range, cls){
+  if(!range)return;
+  let node=range.startContainer;
+  const el=node.nodeType===3?node.parentElement:node;
+  const leaf=el&&el.closest?el.closest('.leaf'):null;
+  if(!leaf)return;
+  const ov=overlayFor(leaf); if(!ov)return;
+  const lr=leaf.getBoundingClientRect();
+  let rects; try{ rects=[...range.getClientRects()]; }catch(e){ return; }
+  rects.forEach(r=>{
+    if(r.width<=0||r.height<=0)return;
+    const d=document.createElement('div');
+    d.className='hl-rect '+cls;
+    d.style.left=(r.left-lr.left)+'px';
+    d.style.top=(r.top-lr.top)+'px';
+    d.style.width=r.width+'px';
+    d.style.height=r.height+'px';
+    ov.appendChild(d);
+  });
+}
+function clearRects(cls){
+  document.querySelectorAll('.hl-rect.'+cls).forEach(e=>e.remove());
+}
 /* highlight exactly one word (the one currently being spoken) */
 function setWordHi(idx){
   clearWordHL();
   const w=curWords[idx]; if(!w)return;
-  let ok=false;
-  if(('highlights' in CSS)&&typeof Highlight!=='undefined'){
-    try{
-      const r=document.createRange(); r.setStart(w.startNode,w.startPos); r.setEnd(w.endNode,w.endPos);
-      if(!readHi){ readHi=new Highlight(); readHi.priority=2; CSS.highlights.set('read',readHi); }
-      readHi.clear(); readHi.add(r); ok=true;
-    }catch(e){}
+  let rect=null;
+  try{
+    const r=document.createRange(); r.setStart(w.startNode,w.startPos); r.setEnd(w.endNode,w.endPos);
+    paintRange(r,'word');
+    const rects=r.getClientRects(); if(rects&&rects.length)rect=rects[0];
+  }catch(e){}
+  // 單字高亮更新很頻繁，平常不捲動（避免估算跳動造成跳行）；
+  // 只有當「正在唸的字」已經捲出可視範圍時，才補捲一次把它帶回畫面
+  if(rect){
+    const cr=stage.getBoundingClientRect();
+    if(rect.top<cr.top+20 || rect.bottom>cr.bottom-20){
+      ensureVisible(w.span||(w.startNode&&w.startNode.parentElement));
+    }
   }
-  if(!ok && w.span) w.span.classList.add('spk');   // fallback: light the word's fragment
-  ensureVisible(w.span||(w.startNode&&w.startNode.parentElement));
 }
 /* fallback used by chunked Google-Translate voice: light the whole line(s) */
 function highlightLines(s){
   clearWordHL();
-  const spans=(s.spans||[]).filter(Boolean);
-  if(!spans.length)return;
-  const rectFor=new Map();
-  const geo=sp=>{
-    const tl=sp.parentNode; if(!tl)return {top:0,fs:12};
-    if(!rectFor.has(tl)) rectFor.set(tl,(tl.getBoundingClientRect?tl.getBoundingClientRect():null));
-    const g=spanGeom(sp,rectFor.get(tl)); return g;
-  };
-  const gs=spans.map(geo);
-  const tol=Math.max(4,(gs[0].fs||12)*0.4);
-  const tops=gs.map(g=>g.top);
-  const minTop=Math.min(...tops)-tol, maxTop=Math.max(...tops)+tol;
-  new Set(spans.map(sp=>sp.parentNode).filter(Boolean)).forEach(tl=>{
-    [...tl.querySelectorAll('span')].forEach(sp=>{ const t=geo(sp).top; if(t>=minTop&&t<=maxTop) sp.classList.add('spk'); });
+  (s.parts||[]).forEach(p=>{
+    const node=p.span&&p.span.firstChild;
+    if(!node||node.nodeType!==3)return;
+    const len=(node.nodeValue||'').length;
+    const so=Math.max(0,Math.min(len,p.so)), eo=Math.max(so,Math.min(len,p.eo));
+    if(eo<=so)return;
+    try{ const r=document.createRange(); r.setStart(node,so); r.setEnd(node,eo); paintRange(r,'word'); }catch(e){}
   });
 }
 function clearWordHL(){
-  if(readHi)readHi.clear();
-  document.querySelectorAll('.textLayer span.spk').forEach(e=>e.classList.remove('spk'));
+  clearRects('word');
 }
 function clearSentenceHL(){
-  if(readLineHi)readLineHi.clear();
-  document.querySelectorAll('.textLayer span.spk-line').forEach(e=>e.classList.remove('spk-line'));
+  clearRects('line');
 }
 function clearHL(){ clearWordHL(); clearSentenceHL(); }
-/* 整句淡色底：用精確字元範圍（跟單字高亮同一套 Highlight API），不是整個 span 上色 ——
-   避免 PDF 文字層把好幾句話包在同一個大 span 裡時，淡色底把不相干的文字也一起染色 */
+/* 整句淡色底：用精確字元範圍畫成疊層 div（不用 CSS Custom Highlight API，
+   Safari 對它的「移除」不重繪，舊句子底色會一路殘留累積） */
 function setSentenceHL(s){
   if(!s)return;
-  let ok=false;
-  if(('highlights' in CSS)&&typeof Highlight!=='undefined'){
-    try{
-      if(!readLineHi){ readLineHi=new Highlight(); readLineHi.priority=1; CSS.highlights.set('read-line',readLineHi); }
-      readLineHi.clear();
-      (s.parts||[]).forEach(p=>{
-        const node=p.span&&p.span.firstChild;
-        if(!node||node.nodeType!==3)return;
-        const len=(node.nodeValue||'').length;
-        const so=Math.max(0,Math.min(len,p.so)), eo=Math.max(so,Math.min(len,p.eo));
-        if(eo<=so)return;
-        const r=document.createRange(); r.setStart(node,so); r.setEnd(node,eo);
-        readLineHi.add(r);
-      });
-      ok=true;
-    }catch(e){}
-  }
-  if(!ok){ (s.spans||[]).forEach(sp=>{ if(sp) sp.classList.add('spk-line'); }); }  // 沒有 Highlight API 的舊瀏覽器才退回整個 span 上色
+  clearSentenceHL();
+  (s.parts||[]).forEach(p=>{
+    const node=p.span&&p.span.firstChild;
+    if(!node||node.nodeType!==3)return;
+    const len=(node.nodeValue||'').length;
+    const so=Math.max(0,Math.min(len,p.so)), eo=Math.max(so,Math.min(len,p.eo));
+    if(eo<=so)return;
+    try{ const r=document.createRange(); r.setStart(node,so); r.setEnd(node,eo); paintRange(r,'line'); }catch(e){}
+  });
 }
 /* keep the reading sentence in view, vertically only, scrolling as little as possible */
 function ensureVisible(el){
@@ -1947,12 +2004,14 @@ async function startReading(){
   if(engine==='builtin'&&!synth){ toast('此瀏覽器沒有內建語音，請改用其他語音來源'); return; }
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
   reading=true;paused=false;readPage=curPage;ttsFails=0;updateAudioUI();
+  document.body.classList.add('reading-on');
   const tk=++readToken;
   await loadPage(); if(reading&&tk===readToken)playFrom(0,tk);
 }
 function stopReading(){
   readToken++;                       // invalidate any in-flight reading loop
   reading=false;paused=false;
+  document.body.classList.remove('reading-on');
   if(synth)synth.cancel();
   stopAudio();
   clearHL();updateAudioUI();
@@ -2104,8 +2163,11 @@ async function playGTranslate(text,tk){
     const onTime=(t,d)=>{
       if(tk!==readToken)return;
       if(!d){ if(lastWi<0){lastWi=idxList[0];setWordHi(lastWi);} return; }
-      const p=Math.max(0,Math.min(1,t/d));
-      const pick=idxList[Math.min(idxList.length-1,Math.floor(p*idxList.length))];
+      // Google 語音開頭/結尾常有短暫靜音，把有效發音區間往內縮一點，讓進度比例更貼近實際字位置
+      const head=0.04, tail=0.06;
+      const p=Math.max(0,Math.min(1,((t/d)-head)/(1-head-tail)));
+      let pick=idxList[Math.min(idxList.length-1,Math.floor(p*idxList.length))];
+      if(pick<lastWi)pick=lastWi;          // 只前進不倒退，避免高亮忽前忽後跳動
       if(pick!==lastWi){ lastWi=pick; setWordHi(pick); }
     };
     await playAudioEl(gtURL(chunks[ci].text,chunks[ci].lang),onTime);
@@ -2117,15 +2179,46 @@ async function speakSentence(text,preUrl,tk,s){
   curWords = wordRanges(s&&s.parts);
   if(engine==='builtin'){
     return new Promise(res=>{
-      const u=new SpeechSynthesisUtterance(text);
-      const zh=hasCJK(text);
+      // 用與 curWords 同源的文字來唸：這樣 onboundary 回報的 charIndex 才能精準對應到高亮的詞。
+      // 但若 curWords 明顯短於原文（parts 過濾掉太多），就退回原文，避免唸漏字。
+      const joined = curWords.map(w=>w.text).join('');
+      const useJoined = curWords.length>0 && joined.replace(/\s/g,'').length >= text.replace(/\s/g,'').length*0.9;
+      const speakText = useJoined ? joined : text;
+      let acc=0; const wordCharStart = curWords.map(w=>{ const s0=acc; acc+=w.text.length; return s0; });
+      const u=new SpeechSynthesisUtterance(speakText);
+      const zh=hasCJK(speakText);
       const v = zh ? (pickZhVoice()||builtinVoice)
                    : (builtinVoice||voices.find(x=>/^en/i.test(x.lang)));
       if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; u.pitch=1;
-      let wi=-1;
-      u.onboundary=e=>{ if(e.name&&e.name!=='word')return; wi++; if(reading&&tk===readToken)setWordHi(wi); };
-      u.onstart=()=>{ if(wi<0&&curWords.length&&reading&&tk===readToken){ wi=0; setWordHi(0); } };
-      u.onend=res; u.onerror=res; synth.speak(u);
+      let lastWi=-1, gotBoundary=false, startTime=0, fallbackTimer=null;
+      const pickByChar=(ci)=>{ let wi=0; while(wi+1<wordCharStart.length && wordCharStart[wi+1]<=ci) wi++; return wi; };
+      const setWi=(wi)=>{ if(wi<lastWi)wi=lastWi; if(wi!==lastWi){ lastWi=wi; setWordHi(wi); } };
+      u.onboundary=e=>{
+        if(!reading||tk!==readToken||!curWords.length)return;
+        if(e.name&&e.name!=='word'&&e.name!=='sentence')return;
+        gotBoundary=true;                 // 這個語音有支援逐字回報 → 停用時間估算的備援
+        if(fallbackTimer){ clearInterval(fallbackTimer); fallbackTimer=null; }
+        setWi(pickByChar((typeof e.charIndex==='number')?e.charIndex:0));
+      };
+      u.onstart=()=>{
+        startTime=Date.now();
+        if(lastWi<0&&curWords.length&&reading&&tk===readToken){ lastWi=0; setWordHi(0); }
+        // 備援：很多瀏覽器（尤其 iOS Safari）對中文不觸發 onboundary，高亮會卡住不動。
+        // 開唸後短時間內若完全沒收到 boundary，就改用「經過時間 ÷ 估計總長」推進高亮。
+        setTimeout(()=>{
+          if(gotBoundary||!reading||tk!==readToken)return;
+          const perChar = zh ? (0.28/Math.max(0.5,rate)) : (0.09/Math.max(0.5,rate));  // 每字概估秒數（隨語速調整）
+          const estTotal = Math.max(0.6, speakText.length*perChar);
+          fallbackTimer=setInterval(()=>{
+            if(gotBoundary||!reading||tk!==readToken){ clearInterval(fallbackTimer); fallbackTimer=null; return; }
+            const elapsed=(Date.now()-startTime)/1000;
+            const p=Math.max(0,Math.min(1,elapsed/estTotal));
+            setWi(Math.min(curWords.length-1,Math.floor(p*curWords.length)));
+          },80);
+        }, 350);
+      };
+      const done=()=>{ if(fallbackTimer){clearInterval(fallbackTimer);fallbackTimer=null;} res(); };
+      u.onend=done; u.onerror=done; synth.speak(u);
     });
   }
   if(engine==='gtranslate'){ return playGTranslate(text,tk); }
@@ -2160,7 +2253,9 @@ async function playFrom(i,tk){
       try{ preUrl=await getAudio(s.text); }catch(e){ fetchErr=true; }
       if(!reading||tk!==readToken)return;
     }
-    clearWordHL(); clearSentenceHL(); setSentenceHL(s);
+    clearWordHL(); clearSentenceHL();
+    try{ const sel=window.getSelection(); if(sel&&sel.rangeCount) sel.removeAllRanges(); }catch(e){}  // 清掉可能殘留的文字選取，避免看起來像一整片反白累積
+    setSentenceHL(s);
     ensureVisible(s.startSpan||(s.spans&&s.spans[0]));
     if(transOn) showReadTrans(s.text, sentences[i+1]&&sentences[i+1].text);
     try{
@@ -2192,6 +2287,7 @@ function readFromSpan(span){
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
   stopReading();                                  // cleanly stop any current playback
   reading=true; paused=false; ttsFails=0;
+  document.body.classList.add('reading-on');
   readPage=(viewMode==='spread'&&totalPages>1)?((curPage%2===0&&curPage>1)?curPage-1:curPage):curPage;
   // build sentences for the currently displayed page/spread (no repaint)
   sentences=[];
@@ -2781,6 +2877,9 @@ function applyHL(c){
     const wordA=Math.min(0.88,baseA+0.35);
     document.documentElement.style.setProperty('--hl-line','rgba('+r+','+g+','+b+','+lineA.toFixed(2)+')');
     document.documentElement.style.setProperty('--hl-word','rgba('+r+','+g+','+b+','+wordA.toFixed(2)+')');
+    // overlay（multiply 疊層）用的實色版本：句子淡、單字深
+    document.documentElement.style.setProperty('--hl-line-solid','rgba('+r+','+g+','+b+','+Math.min(0.5,baseA*0.8+0.15).toFixed(2)+')');
+    document.documentElement.style.setProperty('--hl-word-solid','rgba('+r+','+g+','+b+','+Math.min(0.6,baseA*0.7+0.2).toFixed(2)+')');
   }else{
     document.documentElement.style.setProperty('--hl-line',c);
     document.documentElement.style.setProperty('--hl-word',c);
