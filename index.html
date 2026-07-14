@@ -264,6 +264,64 @@
   .kbd-table td:first-child{width:40%}
   .kbd-table kbd{background:#1c212a;border:1px solid var(--bar-line);border-radius:5px;padding:2px 7px;font-size:12px;color:var(--brass-hi);display:inline-block}
 
+  /* ============ 手機極簡閱讀介面（預設隱藏，只在手機顯示） ============ */
+  .m-topbar,.m-botbar,.m-playbar,.m-sheet,.m-sheet-bg{display:none}
+  .m-topbar{position:absolute;top:0;left:0;right:0;height:48px;z-index:40;
+    align-items:center;gap:10px;padding:0 8px;
+    background:rgba(19,22,28,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--bar-line);
+    transition:transform .25s ease,opacity .25s ease}
+  .m-iconbtn{flex:0 0 auto;width:40px;height:40px;border:none;background:transparent;color:var(--ink);
+    font-size:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .m-iconbtn:active{background:rgba(255,255,255,.08)}
+  .m-title{flex:1;text-align:center;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+  .m-botbar{position:absolute;bottom:0;left:0;right:0;height:54px;z-index:40;
+    align-items:center;gap:10px;padding:0 10px;padding-bottom:env(safe-area-inset-bottom,0);
+    background:rgba(19,22,28,.92);backdrop-filter:blur(12px);border-top:1px solid var(--bar-line);
+    transition:transform .25s ease,opacity .25s ease}
+  .m-progress{flex:1;display:flex;flex-direction:column;gap:2px;justify-content:center}
+  .m-progress input[type=range]{width:100%;margin:0;height:22px;touch-action:manipulation;accent-color:var(--brass)}
+  .m-pageinfo{font-size:10px;color:var(--ink-dim);text-align:center;line-height:1}
+  .m-speaker.on{color:var(--brass-hi)}
+  body.m-immersive .m-topbar{transform:translateY(-100%);opacity:0;pointer-events:none}
+  body.m-immersive .m-botbar{transform:translateY(100%);opacity:0;pointer-events:none}
+  .m-playbar{position:absolute;left:8px;right:8px;bottom:calc(62px + env(safe-area-inset-bottom,0));z-index:42;
+    align-items:center;gap:6px;padding:8px 10px;border-radius:14px;
+    background:rgba(28,33,42,.97);backdrop-filter:blur(14px);border:1px solid var(--bar-line);
+    box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  body.m-immersive .m-playbar{bottom:calc(16px + env(safe-area-inset-bottom,0))}
+  .m-playbar .m-iconbtn{width:38px;height:38px;font-size:18px}
+  .m-playmid{flex:1;min-width:0;padding:0 4px}
+  .m-playtitle{font-size:12px;color:var(--brass-hi);font-weight:600}
+  .m-playsub{font-size:11px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-sheet-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5)}
+  .m-sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;
+    max-height:82vh;overflow-y:auto;background:#161a21;border-radius:20px 20px 0 0;
+    border-top:1px solid var(--bar-line);padding:0 0 calc(20px + env(safe-area-inset-bottom,0));
+    box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+  .m-sheet-handle{width:40px;height:4px;border-radius:2px;background:var(--bar-line);margin:10px auto 4px}
+  .m-sheet-title{font-size:15px;font-weight:600;color:var(--ink);text-align:center;padding:4px 0 10px;border-bottom:1px solid var(--bar-line);margin-bottom:8px}
+  .m-sheet-body{padding:4px 14px}
+  .m-sheet-sec{margin:14px 0 6px;font-size:11px;letter-spacing:1px;color:var(--ink-dim)}
+  .m-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .m-tile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px;border-radius:12px;
+    background:#1c212a;border:1px solid var(--bar-line);color:var(--ink);font-size:11px;text-align:center;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .m-tile:active{background:#232935}
+  .m-tile .em{font-size:22px;line-height:1}
+  .m-tile.on{border-color:var(--brass);background:rgba(214,161,74,.15);color:var(--brass-hi)}
+  .m-tile:disabled{opacity:.35}
+  .m-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--bar-line)}
+  .m-row label{font-size:13px;color:var(--ink);flex:0 0 auto}
+  .m-row select{flex:1;max-width:62%;height:38px;background:#1c212a;border:1px solid var(--bar-line);color:var(--ink);border-radius:9px;padding:0 8px;font-size:13px}
+
+  @media (max-width:640px){
+    body.m-ui .topbar,body.m-ui .bottombar{display:none}
+    body.m-ui .m-topbar,body.m-ui .m-botbar{display:flex}
+    body.m-ui .stage{inset:48px 0 54px 0}
+    body.m-ui.m-immersive .stage{inset:0}
+  }
+
   @media (max-width:640px){
     .brand span.t{display:none}.filename{display:none}.btn span.t{display:none}
     .nav-arrow{width:38px;height:64px;font-size:22px;opacity:.55}
@@ -283,6 +341,42 @@
 </style>
 </head>
 <body>
+  <!-- ============ 手機專用極簡介面（桌面隱藏，手機才顯示） ============ -->
+  <div class="m-topbar" id="mTopbar">
+    <button class="m-iconbtn" id="mMenuBtn" title="選單" aria-label="選單">☰</button>
+    <div class="m-title" id="mTitle">翻頁閱讀器</div>
+    <button class="m-iconbtn" id="mSearchBtn" title="搜尋" aria-label="搜尋">🔎</button>
+  </div>
+
+  <div class="m-botbar" id="mBotbar">
+    <button class="m-iconbtn m-speaker" id="mSpeakerBtn" title="朗讀" aria-label="朗讀">🔊</button>
+    <div class="m-progress" id="mProgress">
+      <input type="range" id="mSlider" min="1" max="1" value="1">
+      <div class="m-pageinfo" id="mPageInfo">– / –</div>
+    </div>
+    <button class="m-iconbtn" id="mViewBtn" title="單頁／雙頁" aria-label="檢視">▤</button>
+  </div>
+
+  <!-- 朗讀時浮出的控制列 -->
+  <div class="m-playbar" id="mPlaybar">
+    <button class="m-iconbtn" id="mPlayToggle" title="播放／暫停">▶</button>
+    <button class="m-iconbtn" id="mPlayStop" title="停止">⏹</button>
+    <div class="m-playmid" id="mPlayMid">
+      <div class="m-playtitle">朗讀中</div>
+      <div class="m-playsub" id="mPlaySub"></div>
+    </div>
+    <button class="m-iconbtn" id="mPlaySettings" title="朗讀設定">⚙</button>
+    <button class="m-iconbtn" id="mPlayClose" title="收起">▾</button>
+  </div>
+
+  <!-- 選單面板（所有工具收在這裡） -->
+  <div class="m-sheet-bg" id="mSheetBg"></div>
+  <div class="m-sheet" id="mSheet">
+    <div class="m-sheet-handle"></div>
+    <div class="m-sheet-title" id="mSheetTitle">選單</div>
+    <div class="m-sheet-body" id="mSheetBody"><!-- 動態填入 --></div>
+  </div>
+
   <div class="topbar">
     <div class="brand"><span class="lamp"></span><span class="t">翻頁閱讀器</span></div>
     <button class="btn primary" id="openBtn"><span class="ico">📂</span><span class="t">開啟 PDF</span></button>
@@ -525,6 +619,7 @@ function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 viewMode=lsGet('reader_view','spread');
 zoom=parseFloat(lsGet('reader_zoom','1'))||1;
 const IS_MOBILE = window.matchMedia('(max-width:640px)').matches || ('ontouchstart' in window);
+let mUiSync=null, mUiAudio=null;   // 手機介面更新 hook（供 syncControls / updateAudioUI 呼叫）
 if(IS_MOBILE && lsGet('reader_view','')===''){ viewMode='single'; }   // phones default to single page
 
 /* ---------- file ---------- */
@@ -1441,6 +1536,7 @@ function syncControls(){
   $('nextArrow').disabled=curPage+step()>totalPages&&curPage>=totalPages;
   $('viewSingle').classList.toggle('on',viewMode==='single');
   $('viewSpread').classList.toggle('on',viewMode==='spread');
+  if(typeof mUiSync==='function'){ try{ mUiSync(); }catch(e){} }
 }
 $('prevArrow').onclick=()=>turnTo(-1);
 $('nextArrow').onclick=()=>turnTo(1);
@@ -1952,6 +2048,7 @@ function ensureVisible(el){
 function updateAudioUI(){
   playBtn.classList.toggle('playing',reading&&!paused);
   playBtn.querySelector('.ico').textContent=(reading&&!paused)?'⏸':'▶';
+  if(typeof mUiAudio==='function'){ try{ mUiAudio(); }catch(e){} }
 }
 async function loadPage(){
   if(viewMode==='spread'&&totalPages>1&&readPage%2===0&&readPage>1)readPage--;
@@ -3222,6 +3319,147 @@ async function runBatchOcr(){
 }
 $('ocrBtn').onclick=()=>{ if(ocrBatchRunning){ toast('正在辨識中…'); return; } runBatchOcr(); };
 ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
+
+/* ============================================================
+   手機極簡閱讀介面：把控制項收進選單面板，閱讀時介面乾淨
+   ============================================================ */
+(function(){
+  if(!IS_MOBILE) return;
+  document.body.classList.add('m-ui');
+
+  const mTitle=$('mTitle'), mSlider=$('mSlider'), mPageInfo=$('mPageInfo');
+  const mSheet=$('mSheet'), mSheetBg=$('mSheetBg'), mSheetTitle=$('mSheetTitle'), mSheetBody=$('mSheetBody');
+  const mPlaybar=$('mPlaybar'), mPlayToggle=$('mPlayToggle'), mPlaySub=$('mPlaySub');
+
+  function openSheet(title,html){ mSheetTitle.textContent=title; mSheetBody.innerHTML=html; mSheet.style.display='block'; mSheetBg.style.display='block'; bindSheet(); }
+  function closeSheet(){ mSheet.style.display='none'; mSheetBg.style.display='none'; }
+  mSheetBg.onclick=closeSheet;
+
+  const click=id=>{ const el=$(id); if(el&&!el.disabled) el.click(); };
+
+  function mainMenuHTML(){
+    const canRead=docLoaded();
+    const tile=(emoji,label,act,on,dis)=>`<button class="m-tile${on?' on':''}" data-act="${act}"${dis?' disabled':''}><span class="em">${emoji}</span>${label}</button>`;
+    let g='<div class="m-sheet-sec">書籍</div><div class="m-grid">';
+    g+=tile('📂','開啟檔案','open');
+    g+=tile('📚','書櫃','shelf');
+    g+=tile('☰','目錄','toc',false,!canRead);
+    g+=tile('🔎','搜尋','search',false,!canRead);
+    g+=tile('🔖','書籤','bm',false,!canRead);
+    g+=tile('📤','匯出','export',false,!canRead);
+    g+='</div>';
+    g+='<div class="m-sheet-sec">檢視</div><div class="m-grid">';
+    g+=tile('📄','單頁',    'single', viewMode==='single');
+    g+=tile('📖','雙頁',    'spread', viewMode==='spread');
+    g+=tile('➖', docType==='flow'?'縮小字':'縮小','zoomout');
+    g+=tile('➕', docType==='flow'?'放大字':'放大','zoomin');
+    g+='</div>';
+    let extras='';
+    if($('ocrBtn').style.display!=='none') extras+=tile('🔍','辨識文字','ocr');
+    if($('reflowBtn').style.display!=='none') extras+=tile('🔤','重排模式','reflow',reflowMode);
+    if($('shapeSel').style.display!=='none') extras+=tile('🖼','頁面形狀','shape');
+    if(extras){ g+='<div class="m-sheet-sec">進階</div><div class="m-grid">'+extras+'</div>'; }
+    g+='<div class="m-sheet-sec">朗讀</div><div class="m-grid">';
+    g+=tile('🔊','開始朗讀','read',false,!canRead);
+    g+=tile('🎙','語音設定','voice');
+    g+=tile('🎨','標示顏色','hlcolor');
+    g+=tile('⚙','金鑰設定','voicegear');
+    g+='</div>';
+    return g;
+  }
+  function openMainMenu(){ openSheet('選單', mainMenuHTML()); }
+
+  function voiceMenuHTML(){
+    const opts=(sel)=>[...$(sel).options].map(o=>`<option value="${o.value}"${o.selected?' selected':''}>${o.textContent}</option>`).join('');
+    let h='<div class="m-row"><label>語音來源</label><select id="mEngineSel">'+opts('engineSel')+'</select></div>';
+    h+='<div class="m-row"><label>語速</label><select id="mRateSel">'+opts('rateSel')+'</select></div>';
+    if($('voiceSel').options.length) h+='<div class="m-row"><label>語音</label><select id="mVoiceSel">'+opts('voiceSel')+'</select></div>';
+    h+='<div class="m-row"><label>睡眠定時</label><select id="mSleepSel">'+opts('sleepSel')+'</select></div>';
+    h+='<div class="m-row"><label>標示顏色</label><select id="mHlSel">'+opts('hlSel')+'</select></div>';
+    h+='<div class="m-sheet-sec">雲端語音（需金鑰）</div><div class="m-grid"><button class="m-tile" data-act="voicegear"><span class="em">⚙</span>金鑰設定</button></div>';
+    return h;
+  }
+
+  function mirror(mId,realId){ const m=$(mId); if(!m)return; m.onchange=()=>{ const r=$(realId); r.value=m.value; r.dispatchEvent(new Event('change')); }; }
+
+  function bindSheet(){
+    mSheetBody.querySelectorAll('.m-tile[data-act]').forEach(t=>{
+      t.onclick=()=>{
+        const act=t.dataset.act;
+        const acts={
+          open:()=>{closeSheet();click('openBtn');},
+          shelf:()=>{closeSheet();click('shelfBtn');},
+          toc:()=>{closeSheet();click('tocBtn');},
+          search:()=>{closeSheet();click('searchBtn');},
+          bm:()=>{click('bmBtn'); openMainMenu();},
+          export:()=>{closeSheet();click('exportBtn');},
+          single:()=>{click('viewSingle'); openMainMenu();},
+          spread:()=>{click('viewSpread'); openMainMenu();},
+          zoomin:()=>{click('zoomIn');},
+          zoomout:()=>{click('zoomOut');},
+          ocr:()=>{closeSheet();click('ocrBtn');},
+          reflow:()=>{closeSheet();click('reflowBtn');},
+          shape:()=>openShapeMenu(),
+          read:()=>{closeSheet();startMobileRead();},
+          voice:()=>openSheet('語音設定',voiceMenuHTML()),
+          voicegear:()=>{closeSheet();click('ttsGear');},
+          hlcolor:()=>openSheet('語音設定',voiceMenuHTML()),
+        };
+        (acts[act]||(()=>{}))();
+      };
+    });
+    mirror('mEngineSel','engineSel'); mirror('mRateSel','rateSel'); mirror('mVoiceSel','voiceSel');
+    mirror('mSleepSel','sleepSel'); mirror('mHlSel','hlSel');
+  }
+
+  function openShapeMenu(){
+    const opts=[...$('shapeSel').options].map(o=>`<option value="${o.value}"${o.selected?' selected':''}>${o.textContent}</option>`).join('');
+    openSheet('頁面形狀','<div class="m-row"><label>形狀</label><select id="mShapeSel">'+opts+'</select></div>');
+    const m=$('mShapeSel'); if(m)m.onchange=()=>{ $('shapeSel').value=m.value; $('shapeSel').dispatchEvent(new Event('change')); };
+  }
+
+  $('mMenuBtn').onclick=openMainMenu;
+  $('mSearchBtn').onclick=()=>click('searchBtn');
+  $('mViewBtn').onclick=()=>{ click(viewMode==='single'?'viewSpread':'viewSingle'); };
+  $('mSpeakerBtn').onclick=()=>{ if(reading){ showPlaybar(); } else { startMobileRead(); } };
+
+  function startMobileRead(){ if(!docLoaded()){ toast('請先開啟一本書'); return; } if(!reading) click('playBtn'); showPlaybar(); }
+
+  function showPlaybar(){ mPlaybar.style.display='flex'; updatePlaybar(); }
+  function hidePlaybar(){ mPlaybar.style.display='none'; }
+  function updatePlaybar(){
+    mPlayToggle.textContent=(reading&&!paused)?'⏸':'▶';
+    $('mSpeakerBtn').classList.toggle('on',reading);
+    if(mPlaySub){ const es=$('engineSel'); mPlaySub.textContent=(es&&es.selectedOptions[0])?es.selectedOptions[0].textContent:''; }
+  }
+  mPlayToggle.onclick=()=>{ if(!reading){ click('playBtn'); } else { paused=!paused; if(synth&&engine==='builtin'){ if(paused)synth.pause(); else synth.resume(); } updateAudioUI(); } updatePlaybar(); };
+  $('mPlayStop').onclick=()=>{ stopReading(); hidePlaybar(); updatePlaybar(); };
+  $('mPlaySettings').onclick=()=>openSheet('語音設定',voiceMenuHTML());
+  $('mPlayClose').onclick=hidePlaybar;
+
+  mSlider.addEventListener('input',()=>{ const n=parseInt(mSlider.value)||1; $('pageSlider').value=n; $('pageSlider').dispatchEvent(new Event('input')); });
+  mSlider.addEventListener('change',()=>{ const n=parseInt(mSlider.value)||1; $('pageSlider').value=n; $('pageSlider').dispatchEvent(new Event('change')); });
+
+  stage.addEventListener('click',e=>{
+    if(e.target.closest('.textLayer span'))return;
+    if(e.target.closest('.nav-arrow'))return;
+    if(window.getSelection && window.getSelection().toString().trim())return;
+    const w=window.innerWidth, x=e.clientX;
+    if(x>w*0.30 && x<w*0.70){ document.body.classList.toggle('m-immersive'); }
+  });
+
+  mUiSync=function(){
+    try{
+      mTitle.textContent=($('filename').textContent)||'翻頁閱讀器';
+      mSlider.max=totalPages||1; mSlider.value=curPage;
+      mPageInfo.textContent=(docLoaded()? curPage+' / '+(totalPages||'–') : '– / –');
+      updatePlaybar();
+      if(reading && mPlaybar.style.display==='none') showPlaybar();
+    }catch(e){}
+  };
+  mUiAudio=function(){ try{ updatePlaybar(); }catch(e){} };
+  mUiSync();
+})();
 
 syncControls();
 </script>
