@@ -620,6 +620,7 @@ viewMode=lsGet('reader_view','spread');
 zoom=parseFloat(lsGet('reader_zoom','1'))||1;
 const IS_MOBILE = window.matchMedia('(max-width:640px)').matches || ('ontouchstart' in window);
 let mUiSync=null, mUiAudio=null;   // 手機介面更新 hook（供 syncControls / updateAudioUI 呼叫）
+let lastCloudError='';             // 記錄雲端語音最近一次的實際失敗原因，供錯誤提示顯示
 if(IS_MOBILE && lsGet('reader_view','')===''){ viewMode='single'; }   // phones default to single page
 
 /* ---------- file ---------- */
@@ -1694,7 +1695,11 @@ async function googleTTS(text){
   const r=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key='+encodeURIComponent(key),{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({input:{text},voice:{languageCode:lang,name:voice},audioConfig:{audioEncoding:'MP3',speakingRate:rate}})});
-  if(!r.ok)throw new Error('Google TTS 失敗 ('+r.status+')');
+  if(!r.ok){
+    let reason=''; try{ const e=await r.json(); reason=e&&e.error&&e.error.message?e.error.message:''; }catch(_){}
+    lastCloudError = 'Google 語音失敗（'+r.status+'）'+(reason?'：'+reason:'');
+    throw new Error(lastCloudError);
+  }
   const j=await r.json(); return 'data:audio/mp3;base64,'+j.audioContent;
 }
 async function elevenTTS(text){
@@ -1703,7 +1708,11 @@ async function elevenTTS(text){
   const r=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+voice,{
     method:'POST',headers:{'xi-api-key':key,'Content-Type':'application/json'},
     body:JSON.stringify({text,model_id:'eleven_multilingual_v2'})});
-  if(!r.ok)throw new Error('ElevenLabs 失敗 ('+r.status+')');
+  if(!r.ok){
+    let reason=''; try{ const e=await r.json(); reason=(e&&e.detail&&(e.detail.message||e.detail))||''; if(typeof reason==='object')reason=JSON.stringify(reason); }catch(_){}
+    lastCloudError='ElevenLabs 失敗（'+r.status+'）'+(reason?'：'+reason:'');
+    throw new Error(lastCloudError);
+  }
   return URL.createObjectURL(await r.blob());
 }
 async function localTTS(text){
@@ -2096,6 +2105,7 @@ async function gatePause(){ while(paused&&reading) await sleep(120); }
 let readToken=0;
 async function startReading(){
   if(!docLoaded())return;
+  unlockAudio();   // 趁使用者手勢還在，先解鎖音訊播放（iOS 雲端語音必要）
   if(reading&&!paused){ paused=true; if(engine==='builtin')synth.pause(); else if(curAudio)curAudio.pause(); updateAudioUI(); return; }
   if(reading&&paused){ paused=false; if(engine==='builtin')synth.resume(); else if(curAudio)curAudio.play().catch(()=>{}); updateAudioUI(); return; }
   if(engine==='builtin'&&!synth){ toast('此瀏覽器沒有內建語音，請改用其他語音來源'); return; }
@@ -2192,21 +2202,44 @@ async function showReadTrans(text,nextText){
 }
 
 /* fully stop & release the current audio so two clips can never overlap */
+let audioSession=0;                // 播放場次編號：共用同一個 audio 元素時，用它辨識「這次播放」是否已被取代
 function stopAudio(){
+  audioSession++;                  // 讓仍在跑的舊計時迴圈自己收手
   if(curAudio){ try{ curAudio.pause(); curAudio.onended=null; curAudio.onerror=null; curAudio.src=''; }catch(e){} curAudio=null; }
 }
 /* play one <audio> url, resolves on end. Always stops any prior audio first.
    onTime(currentTime,duration) fires ~each frame so callers can move a word highlight. */
+let sharedAudio=null, audioUnlocked=false;
+/* iOS/Safari 只允許「使用者手勢」直接觸發音訊播放。雲端語音要 await 抓取音檔，
+   等音檔回來時已脫離手勢脈絡會被擋。解法：在使用者點「朗讀」當下先解鎖一個共用 audio 元素，
+   之後都重複用它播放，就不受限制（這也是為何內建語音沒事、雲端語音在手機上放不出聲）。 */
+function unlockAudio(){
+  if(audioUnlocked)return;
+  try{
+    if(!sharedAudio){ sharedAudio=new Audio(); sharedAudio.setAttribute('playsinline',''); }
+    // 播一段極短的靜音 data URI 來完成解鎖
+    sharedAudio.src='data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA';
+    const p=sharedAudio.play();
+    if(p&&p.then)p.then(()=>{audioUnlocked=true;}).catch(()=>{});
+    else audioUnlocked=true;
+  }catch(e){}
+}
 function playAudioEl(url,onTime){
   stopAudio();
+  const my=++audioSession;         // 這次播放的場次編號
   return new Promise((resolve,reject)=>{
-    const a=new Audio(url); curAudio=a; let raf=0;
-    const tick=()=>{ if(curAudio!==a)return; try{ onTime&&onTime(a.currentTime,a.duration||0); }catch(e){} raf=requestAnimationFrame(tick); };
+    // 重複使用已解鎖的共用元素（手機必要），桌面則沿用也無妨
+    const a = sharedAudio || (sharedAudio=new Audio());
+    try{ a.setAttribute('playsinline',''); }catch(e){}
+    a.src=url; curAudio=a; let raf=0;
+    // 注意：共用元素時不能再用 curAudio!==a 判斷是否過時（永遠相等），必須靠場次編號
+    const live=()=>audioSession===my;
+    const tick=()=>{ if(!live())return; try{ onTime&&onTime(a.currentTime,a.duration||0); }catch(e){} raf=requestAnimationFrame(tick); };
     const stopTick=()=>{ if(raf)cancelAnimationFrame(raf); raf=0; };
-    a.onended=()=>{ stopTick(); if(curAudio===a)curAudio=null; resolve(); };
-    a.onerror=()=>{ stopTick(); if(curAudio===a)curAudio=null; reject(new Error('audio')); };
-    a.onplay=()=>{ stopTick(); if(onTime)raf=requestAnimationFrame(tick); };
-    a.play().catch(reject);
+    a.onended=()=>{ stopTick(); if(!live())return; if(curAudio===a)curAudio=null; resolve(); };
+    a.onerror=()=>{ stopTick(); if(!live())return; if(curAudio===a)curAudio=null; reject(new Error('audio')); };
+    a.onplay=()=>{ stopTick(); if(onTime&&live())raf=requestAnimationFrame(tick); };
+    a.play().catch(err=>{ if(live()) reject(err); });
   });
 }
 /* Google Translate free TTS — auto en/zh per chunk, max ~180 chars */
@@ -2347,7 +2380,17 @@ async function playFrom(i,tk){
     // pre-fetch this sentence's audio FIRST, so the highlight appears in sync with the voice
     let preUrl=null, fetchErr=false;
     if(engine!=='builtin'&&engine!=='gtranslate'){
-      try{ preUrl=await getAudio(s.text); }catch(e){ fetchErr=true; }
+      try{ preUrl=await getAudio(s.text); }
+      catch(e){
+        fetchErr=true;
+        const m=(e&&e.message)||'';
+        // 保留實際原因，手機沒有主控台可看，全靠這個提示判斷是金鑰錯還是連不到
+        if(m&&m!=='audio'){
+          lastCloudError = /failed to fetch|load failed|networkerror|network request/i.test(m)
+            ? ('連不到語音服務（'+m+'）。請確認網路，以及 API 金鑰是否設了來源／網站限制')
+            : m;
+        }
+      }
       if(!reading||tk!==readToken)return;
     }
     clearWordHL(); clearSentenceHL();
@@ -2364,7 +2407,7 @@ async function playFrom(i,tk){
       await sleep(150);
       if(tk!==readToken)return;
       if(engine==='gtranslate'&&ttsFails>=2){ stopReading(); toast('Google 翻譯語音目前無法使用，請改用「內建語音」'); return; }
-      if(needsKey(engine)&&ttsFails>=2){ stopReading(); toast('雲端語音失敗，請檢查 ⚙ 設定的金鑰'); return; }
+      if(needsKey(engine)&&ttsFails>=2){ stopReading(); toast(lastCloudError||'雲端語音失敗，請檢查 ⚙ 設定的金鑰'); return; }
       if(engine==='local'&&ttsFails>=2){ stopReading(); toast('本機語音伺服器無回應，請確認 Kokoro 是否已啟動'); return; }
     }
     if(!reading||tk!==readToken)return;
@@ -2380,6 +2423,7 @@ setInterval(()=>{ if(reading&&!paused&&engine==='builtin'&&synth&&synth.speaking
 function readFromSpan(span){
   if(!docLoaded()||!span)return;
   const leaf=span.closest('.leaf'); if(!leaf||leaf.dataset.page==null)return;
+  unlockAudio();   // 趁使用者手勢還在，先解鎖音訊播放（iOS 雲端語音必要）
   if(engine==='builtin'&&!synth){ toast('此瀏覽器沒有內建語音，請改用其他語音來源'); return; }
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
   stopReading();                                  // cleanly stop any current playback
@@ -3432,7 +3476,9 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     $('mSpeakerBtn').classList.toggle('on',reading);
     if(mPlaySub){ const es=$('engineSel'); mPlaySub.textContent=(es&&es.selectedOptions[0])?es.selectedOptions[0].textContent:''; }
   }
-  mPlayToggle.onclick=()=>{ if(!reading){ click('playBtn'); } else { paused=!paused; if(synth&&engine==='builtin'){ if(paused)synth.pause(); else synth.resume(); } updateAudioUI(); } updatePlaybar(); };
+  // 播放/暫停一律交給原本的朗讀鈕處理：它已包含內建與雲端語音各自的暫停/續播邏輯
+  // （手機自行切換 paused 旗標的話，雲端語音的音檔不會真的停下來）
+  mPlayToggle.onclick=()=>{ click('playBtn'); updatePlaybar(); };
   $('mPlayStop').onclick=()=>{ stopReading(); hidePlaybar(); updatePlaybar(); };
   $('mPlaySettings').onclick=()=>openSheet('語音設定',voiceMenuHTML());
   $('mPlayClose').onclick=hidePlaybar;
