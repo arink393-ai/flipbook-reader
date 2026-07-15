@@ -283,6 +283,10 @@
   .m-progress input[type=range]{width:100%;margin:0;height:22px;touch-action:manipulation;accent-color:var(--brass)}
   .m-pageinfo{font-size:10px;color:var(--ink-dim);text-align:center;line-height:1}
   .m-speaker.on{color:var(--brass-hi)}
+  /* 字級鈕：常駐在底列，隨時可調（不必進選單）。小 A／大 A 的對比讓人一眼看懂 */
+  .m-font{width:38px;font-weight:700;font-size:13px;line-height:1;gap:1px}
+  .m-font.m-font-lg{font-size:19px}
+  .m-font .sg{font-size:11px;font-weight:600;opacity:.8}
   body.m-immersive .m-topbar{transform:translateY(-100%);opacity:0;pointer-events:none}
   body.m-immersive .m-botbar{transform:translateY(100%);opacity:0;pointer-events:none}
   .m-playbar{position:absolute;left:8px;right:8px;bottom:calc(62px + env(safe-area-inset-bottom,0));z-index:42;
@@ -354,7 +358,8 @@
       <input type="range" id="mSlider" min="1" max="1" value="1">
       <div class="m-pageinfo" id="mPageInfo">– / –</div>
     </div>
-    <button class="m-iconbtn" id="mViewBtn" title="單頁／雙頁" aria-label="檢視">▤</button>
+    <button class="m-iconbtn m-font" id="mFontMinus" title="縮小字級" aria-label="縮小字級">A<span class="sg">−</span></button>
+    <button class="m-iconbtn m-font m-font-lg" id="mFontPlus" title="放大字級" aria-label="放大字級">A<span class="sg">＋</span></button>
   </div>
 
   <!-- 朗讀時浮出的控制列 -->
@@ -825,13 +830,16 @@ async function convertEpub(file){
             const mime=guessImageMime(imgPath);
             if(mime && blob.type!==mime){ try{ blob=blob.slice(0,blob.size,mime); }catch(e){} }
             b.src=await blobToDataURL(blob);
+            let dim=null;
             try{
               if(typeof createImageBitmap==='function'){
                 const bmp=await createImageBitmap(blob);
-                b.w0=bmp.width; b.h0=bmp.height;
-                if(bmp.close)bmp.close();
+                if(bmp&&bmp.width&&bmp.height) dim={w:bmp.width,h:bmp.height};
+                if(bmp&&bmp.close)bmp.close();
               }
             }catch(e){}
+            if(!dim) dim=await imgNaturalSize(b.src);      // 後備：Safari 等環境 createImageBitmap 可能不可用或失敗
+            if(dim&&dim.w&&dim.h){ b.w0=dim.w; b.h0=dim.h; }
           }
         }catch(e){ b.src=''; }
       }
@@ -845,6 +853,21 @@ function guessImageMime(path){
   return {jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',svg:'image/svg+xml',webp:'image/webp',bmp:'image/bmp'}[ext]||'';
 }
 function blobToDataURL(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); }); }
+/* 讀出圖片的原始尺寸。所有瀏覽器都支援 <img>.naturalWidth，用來當 createImageBitmap 的後備——
+   拿不到尺寸的話，分頁只能用寫死的估計值，圖片一高就會嚴重低估，後面的文字被硬塞進同一頁然後被裁掉。 */
+function imgNaturalSize(src){
+  return new Promise(res=>{
+    try{
+      const im=new Image();
+      let done=false;
+      const finish=v=>{ if(done)return; done=true; res(v); };
+      im.onload=()=>finish({w:im.naturalWidth||0,h:im.naturalHeight||0});
+      im.onerror=()=>finish(null);
+      setTimeout(()=>finish(null),4000);      // 安全網：避免個別圖片卡住整本書的轉換
+      im.src=src;
+    }catch(e){ res(null); }
+  });
+}
 
 /* ---------- 分頁引擎：用隱藏測量框把 blocks 切成一頁一頁 ---------- */
 function escHtmlFlow(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
@@ -881,10 +904,14 @@ function blockToHTML(b,forMeasure){
     if(!b.src)return '';
     if(forMeasure){
       // 量測階段只需要知道會佔多高，不需要真的塞進完整圖片資料——
-      // 圖片一多，反覆把完整 base64 塞進去重新解碼會非常慢（甚至像卡死）
-      let h=220;
-      if(b.w0&&b.h0){ const availW=Math.max(120,(curW||420)-88); h=Math.max(40,Math.min(900,Math.round(b.h0*(availW/b.w0)))); }
-      return '<div style="height:'+h+'px"></div>';
+      // 圖片一多，反覆把完整 base64 塞進去重新解碼會非常慢（甚至像卡死）。
+      // 但估的高度必須與實際渲染的 CSS 規則一致（max-width:100%／max-height:calc(100% - 20px)／margin:6px auto 14px），
+      // 一旦低估，後面的文字會被硬塞進同一頁，再被 overflow:hidden 無聲裁掉。
+      const availW=Math.max(120,(curW||420)-88);          // 扣掉左右內距 44*2
+      const maxH=Math.max(60,(curH||600)-104-20);         // 扣掉上下內距 52*2，再扣 max-height 保留的 20px
+      let h=Math.min(320,maxH);                            // 沒有原始尺寸時：寧可估大（頂多換頁），也不要估小（會裁字）
+      if(b.w0&&b.h0) h=Math.max(40,Math.min(maxH,Math.round(b.h0*(availW/b.w0))));
+      return '<div style="height:'+h+'px;margin:6px auto 14px"></div>';
     }
     return '<img src="'+b.src+'">';
   }
@@ -934,7 +961,7 @@ async function paginateBlocks(blocks,cancelCheck){
   let buffer=[]; let bufHTML='';
   const queue=blocks.slice();
   const totalBlocks=queue.length;
-  let guard=0;
+  let guard=0, seenImg=false;
   while(queue.length){
     if(++guard>20000)break;                  // 安全防護，避免極端情況卡死
     if(guard%12===0){
@@ -944,12 +971,16 @@ async function paginateBlocks(blocks,cancelCheck){
       updateLoadingProgress(pct);
     }
     const blk=queue.shift();
-    // 大圖（估計高度超過頁面一半，通常是封面或整頁插圖）獨佔一頁：
-    // 先把目前累積的內容收尾成一頁，這張圖自己一頁，後面內容從新的一頁開始
+    // 大圖獨佔一頁：先把目前累積的內容收尾成一頁，這張圖自己一頁，後面內容從新的一頁開始。
+    // 估法必須跟 blockToHTML(forMeasure) 一致，否則兩邊對不上。
     if(blk.type==='img'){
-      let ih=240;
-      if(blk.w0&&blk.h0){ const availW=Math.max(120,w-88); ih=Math.max(40,Math.round(blk.h0*(availW/blk.w0))); }
-      if(ih > h*0.5){
+      const availW=Math.max(120,w-88);
+      const maxH=Math.max(60,h-104-20);
+      const ih=(blk.w0&&blk.h0) ? Math.max(40,Math.min(maxH,Math.round(blk.h0*(availW/blk.w0))))
+                                : Math.min(320,maxH);
+      const isCover = !seenImg && (totalBlocks-queue.length)<=3;   // 全書第一張圖、又出現在最前面 → 視為封面
+      seenImg=true;
+      if(ih > h*0.5 || (isCover && ih > h*0.3)){                   // 封面門檻放寬：書的封面本來就該自己一頁
         if(buffer.length){ pages.push(buffer); buffer=[]; bufHTML=''; }
         pages.push([blk]);
         continue;
@@ -984,10 +1015,10 @@ async function paginateBlocks(blocks,cancelCheck){
   }});});
   return {pages,headingMap};
 }
-let repaginating=false;
+let repaginating=false, repaginateAgain=false;
 async function repaginateFlow(){
   if(docType!=='flow'||!flowRawBlocks.length)return;
-  if(repaginating)return;      // 避免在還沒跑完時被重複觸發，疊加成連鎖重新分頁
+  if(repaginating){ repaginateAgain=true; return; }   // 正在跑：記下來，跑完再補一次（直接丟掉會讓分頁與目前字級不同步）
   repaginating=true;
   showLoading('視窗大小改變，重新分頁中…');
   try{
@@ -998,7 +1029,11 @@ async function repaginateFlow(){
     curPage=Math.max(1,Math.min(totalPages,Math.round(curFrac*totalPages)+1));
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook(); buildTOC();
-  }catch(e){console.error(e);} finally{hideLoading(); repaginating=false;}
+  }catch(e){console.error(e);}
+  finally{
+    hideLoading(); repaginating=false;
+    if(repaginateAgain){ repaginateAgain=false; await repaginateFlow(); }   // 補做期間被擋下的那次
+  }
 }
 const LIB_DB='flipReaderLib', LIB_STORE='books', OCR_STORE='ocrPages';
 function libOpen(){return new Promise((res,rej)=>{const q=indexedDB.open(LIB_DB,2);
@@ -1600,11 +1635,14 @@ $('shapeSel').onchange=async()=>{
   flowPageShape=$('shapeSel').value; lsSet('reader_flow_shape',flowPageShape);
   if(docType==='flow'&&flowRawBlocks.length){ await repaginateFlow(); toast('頁面形狀：'+(flowPageShape==='auto'?'自動（偵測為'+(detectedFlowShape==='landscape'?'橫式':'直式')+'）':(flowPageShape==='landscape'?'橫式':'直式'))); }
 };
+let flowZoomT=0;
 async function applyFlowZoom(delta){
   if(reading)stopReading();
-  setFlowFontScale(flowFontScale+delta);
-  await repaginateFlow();
-  toast('字級 '+Math.round(flowFontScale*100)+'%');
+  setFlowFontScale(flowFontScale+delta);     // 先套用字級：畫面立刻有回饋
+  // 重新分頁很重（整本書要重算），連按時只在停手後做一次，
+  // 否則中途的重算會被 repaginateFlow 的防重入擋掉，造成「字級已變、分頁還是舊的」而裁字
+  clearTimeout(flowZoomT);
+  flowZoomT=setTimeout(()=>{ repaginateFlow(); },350);
 }
 async function applyZoom(z){if(reading)stopReading();zoom=Math.max(.4,Math.min(z,4));fitMode=null;lsSet('reader_zoom',String(zoom));imgCache.clear();if(pdfDoc)await paintBook();}
 $('zoomIn').onclick=()=>{ if(docType==='flow')applyFlowZoom(0.12); else applyZoom(zoom+0.15); };
@@ -3464,7 +3502,18 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
 
   $('mMenuBtn').onclick=openMainMenu;
   $('mSearchBtn').onclick=()=>click('searchBtn');
-  $('mViewBtn').onclick=()=>{ click(viewMode==='single'?'viewSpread':'viewSingle'); };
+  // 字級：直接沿用既有的 +/− 邏輯（flow 調字級、PDF 調縮放），並把百分比就地顯示出來
+  let fontFlashUntil=0, fontFlashT=0;
+  function flashFontPct(){
+    const isFlow=(docType==='flow');
+    const pct=Math.round((isFlow?flowFontScale:zoom)*100);
+    mPageInfo.textContent=(isFlow?'字級 ':'縮放 ')+pct+'%';
+    fontFlashUntil=Date.now()+1500;
+    clearTimeout(fontFlashT);
+    fontFlashT=setTimeout(()=>{ fontFlashUntil=0; if(mUiSync)mUiSync(); },1500);
+  }
+  $('mFontMinus').onclick=()=>{ if(!docLoaded()){toast('請先開啟一本書');return;} click('zoomOut'); flashFontPct(); };
+  $('mFontPlus').onclick=()=>{ if(!docLoaded()){toast('請先開啟一本書');return;} click('zoomIn'); flashFontPct(); };
   $('mSpeakerBtn').onclick=()=>{ if(reading){ showPlaybar(); } else { startMobileRead(); } };
 
   function startMobileRead(){ if(!docLoaded()){ toast('請先開啟一本書'); return; } if(!reading) click('playBtn'); showPlaybar(); }
@@ -3498,7 +3547,8 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     try{
       mTitle.textContent=($('filename').textContent)||'翻頁閱讀器';
       mSlider.max=totalPages||1; mSlider.value=curPage;
-      mPageInfo.textContent=(docLoaded()? curPage+' / '+(totalPages||'–') : '– / –');
+      // 剛調整字級時，這一行暫時顯示百分比，別馬上被頁碼蓋掉
+      if(Date.now()>fontFlashUntil) mPageInfo.textContent=(docLoaded()? curPage+' / '+(totalPages||'–') : '– / –');
       updatePlaybar();
       if(reading && mPlaybar.style.display==='none') showPlaybar();
     }catch(e){}
