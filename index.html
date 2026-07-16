@@ -50,6 +50,13 @@
   .stage{position:absolute;inset:54px 0 56px 0;overflow:auto;
     background:radial-gradient(1200px 600px at 50% -10%,#2a2f38 0%,transparent 70%),var(--stage)}
   .scroller{padding:30px;min-width:100%;min-height:100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+  .scroller.continuous-scroller{align-items:flex-start;padding:18px 12px 48px}
+  .book.continuous{width:100%;display:flex;flex-direction:column;align-items:center;gap:18px;perspective:none}
+  .continuous-slot{position:relative;flex:none;display:flex;align-items:flex-start;justify-content:center;max-width:100%;transition:min-height .15s ease}
+  .continuous-slot::before{content:"第 " attr(data-page) " 頁";position:absolute;top:18px;left:50%;transform:translateX(-50%);color:var(--ink-dim);font-size:12px;z-index:0}
+  .continuous-slot.loaded::before{display:none}
+  .book.continuous .leaf{flex:none;margin:0 auto}
+  .stage.continuous-stage .nav-arrow{display:none}
 
   /* book + pages */
   .book{position:relative;display:flex;gap:0;perspective:2600px}
@@ -397,6 +404,7 @@
     <div class="seg" title="檢視方式">
       <button class="btn" id="viewSingle">單頁</button>
       <button class="btn on" id="viewSpread">雙頁</button>
+      <button class="btn" id="viewContinuous">向下捲動</button>
     </div>
     <div class="spacer"></div>
     <div class="filename" id="filename"></div>
@@ -1200,7 +1208,7 @@ async function renderLeaf(idx,cls){
   }
   applyAnnotations(leaf);
   // also cache the image for flip faces
-  try{imgCache.set(idx,{url:cv.toDataURL('image/jpeg',0.85),w:curW,h:curH});}catch(e){}
+  if(viewMode!=='continuous'){try{imgCache.set(idx,{url:cv.toDataURL('image/jpeg',0.85),w:curW,h:curH});}catch(e){}}
   return leaf;
 }
 
@@ -1239,10 +1247,84 @@ function renderFlowLeaf(idx,cls){
 
 /* resting render of current spread/page (selectable) */
 let paintToken=0;
+let continuousObserver=null,continuousRenderer=null,continuousScrollRAF=0,continuousJumping=false;
+const continuousJobs=new Map();
+function continuousLeafSize(leaf){
+  const el=leaf&&leaf.querySelector('canvas.page,.textLayer');
+  const w=parseFloat(el&&el.style.width)||curW||Math.max(280,stage.clientWidth-40);
+  const h=parseFloat(el&&el.style.height)||curH||Math.round(w*1.414);
+  return {w,h};
+}
+function leaveContinuousLayout(){
+  if(continuousObserver){continuousObserver.disconnect();continuousObserver=null;}
+  continuousRenderer=null;continuousJobs.clear();
+  stage.classList.remove('continuous-stage');$('scroller').classList.remove('continuous-scroller');
+}
+function trimContinuousPages(center){
+  if(viewMode!=='continuous')return;
+  const keep=new Set();for(let p=Math.max(1,center-4);p<=Math.min(totalPages,center+4);p++)keep.add(p);
+  if(reading){for(let p=Math.max(1,readPage-1);p<=Math.min(totalPages,readPage+1);p++)keep.add(p);}
+  book.querySelectorAll('.continuous-slot.loaded').forEach(slot=>{
+    const p=+slot.dataset.page;if(keep.has(p))return;
+    slot.innerHTML='';slot.classList.remove('loaded');
+  });
+}
+async function ensureContinuousLeaf(idx){
+  if(viewMode!=='continuous'||idx<1||idx>totalPages)return null;
+  const slot=book.querySelector('.continuous-slot[data-page="'+idx+'"]');
+  if(!slot)return null;
+  const ready=slot.querySelector('.leaf');if(ready)return ready;
+  if(continuousJobs.has(idx))return continuousJobs.get(idx);
+  const render=continuousRenderer||(docType==='flow'?(i,c)=>renderFlowLeaf(i,c):(i,c)=>renderLeaf(i,c));
+  const job=(async()=>{
+    const leaf=await render(idx,'single');
+    if(viewMode!=='continuous'||!slot.isConnected)return leaf;
+    const size=continuousLeafSize(leaf);
+    slot.style.width=size.w+'px';slot.style.minHeight=size.h+'px';slot.style.height=size.h+'px';
+    slot.innerHTML='';slot.appendChild(leaf);slot.classList.add('loaded');
+    leaf.classList.toggle('bookmarked',bookmarks.has(idx));
+    return leaf;
+  })().finally(()=>continuousJobs.delete(idx));
+  continuousJobs.set(idx,job);return job;
+}
+async function scrollContinuousToPage(idx,behavior='smooth'){
+  if(viewMode!=='continuous')return;
+  idx=Math.max(1,Math.min(totalPages,idx));await ensureContinuousLeaf(idx);
+  const slot=book.querySelector('.continuous-slot[data-page="'+idx+'"]');if(!slot)return;
+  continuousJumping=true;
+  const sr=stage.getBoundingClientRect(),r=slot.getBoundingClientRect();
+  stage.scrollTo({top:Math.max(0,stage.scrollTop+r.top-sr.top-16),behavior});
+  setTimeout(()=>{continuousJumping=false;},behavior==='smooth'?500:80);
+}
+async function paintContinuous(myPaint,render){
+  if(continuousObserver)continuousObserver.disconnect();continuousJobs.clear();continuousRenderer=render;
+  const anchor=await render(curPage,'single');
+  if(myPaint!==paintToken||viewMode!=='continuous')return;
+  const size=continuousLeafSize(anchor);
+  stage.classList.add('continuous-stage');$('scroller').classList.add('continuous-scroller');
+  book.className='book continuous';book.innerHTML='';
+  for(let p=1;p<=totalPages;p++){
+    const slot=document.createElement('div');slot.className='continuous-slot';slot.dataset.page=p;
+    slot.style.width=size.w+'px';slot.style.minHeight=size.h+'px';slot.style.height=size.h+'px';
+    if(p===curPage){slot.appendChild(anchor);slot.classList.add('loaded');}
+    book.appendChild(slot);
+  }
+  if('IntersectionObserver' in window){
+    continuousObserver=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)ensureContinuousLeaf(+e.target.dataset.page);});},{root:stage,rootMargin:'1200px 0px'});
+    book.querySelectorAll('.continuous-slot').forEach(s=>continuousObserver.observe(s));
+  }else{
+    for(let p=Math.max(1,curPage-2);p<=Math.min(totalPages,curPage+2);p++)ensureContinuousLeaf(p);
+  }
+  ensureContinuousLeaf(curPage-1);ensureContinuousLeaf(curPage+1);
+  syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));
+  requestAnimationFrame(()=>scrollContinuousToPage(curPage,'auto'));
+}
 async function paintBook(){
   if(!docLoaded())return;
   const myPaint=++paintToken;                     // 快速連續翻頁時，只讓「最新」的一次重繪上畫面，舊的直接放棄
   const render=docType==='flow' ? (i,c)=>renderFlowLeaf(i,c) : (i,c)=>renderLeaf(i,c);
+  if(viewMode==='continuous')return paintContinuous(myPaint,render);
+  leaveContinuousLayout();
   // 雙緩衝：先在畫面外把新頁面完整渲染好，這段期間舊頁面保持顯示——避免「先清空再慢慢畫」造成翻頁瞬間整頁空白閃爍
   const leaves=[];
   if(viewMode==='spread'&&totalPages>1){
@@ -1260,6 +1342,20 @@ async function paintBook(){
   updateChapterTime();
   if(fileKey)lsSet(fileKey,String(curPage));
 }
+
+stage.addEventListener('scroll',()=>{
+  if(viewMode!=='continuous'||continuousJumping||continuousScrollRAF)return;
+  continuousScrollRAF=requestAnimationFrame(()=>{
+    continuousScrollRAF=0;
+    const sr=stage.getBoundingClientRect();
+    const hit=document.elementFromPoint(sr.left+sr.width/2,sr.top+Math.min(sr.height*0.32,220));
+    const slot=hit&&hit.closest&&hit.closest('.continuous-slot');
+    const p=slot?+slot.dataset.page:0;
+    if(p&&p!==curPage){curPage=p;syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));}
+    if(p)trimContinuousPages(p);
+    if(p){ensureContinuousLeaf(p-1);ensureContinuousLeaf(p+1);}
+  });
+},{passive:true});
 
 /* ---------- 書籤（跟螢光筆標記分開，單純插旗某一頁）---------- */
 function loadBookmarks(){ try{ bookmarks=new Set(JSON.parse(lsGet('bm_'+fileKey,'[]'))); }catch(e){ bookmarks=new Set(); } }
@@ -1487,6 +1583,11 @@ async function animateTurn(el,shade,from,to){
 async function turnTo(dir){
   if(animating||!docLoaded())return;
   if(reading)stopReading();
+  if(viewMode==='continuous'){
+    const target=Math.max(1,Math.min(totalPages,curPage+(dir>0?1:-1)));
+    if(target!==curPage){curPage=target;syncControls();await scrollContinuousToPage(target);}
+    return;
+  }
   const fwd=dir>0;
   const spread=(viewMode==='spread'&&totalPages>1);
   let target=curPage+(spread?(fwd?2:-2):(fwd?1:-1));
@@ -1580,6 +1681,7 @@ function syncControls(){
   $('nextArrow').disabled=curPage+step()>totalPages&&curPage>=totalPages;
   $('viewSingle').classList.toggle('on',viewMode==='single');
   $('viewSpread').classList.toggle('on',viewMode==='spread');
+  $('viewContinuous').classList.toggle('on',viewMode==='continuous');
   if(typeof mUiSync==='function'){ try{ mUiSync(); }catch(e){} }
 }
 $('prevArrow').onclick=()=>turnTo(-1);
@@ -1618,6 +1720,7 @@ $('nextArrow').onclick=()=>turnTo(1);
       return;
     }
     if(e.touches.length===0 && !moved && Date.now()-st<500){   // a clean tap
+      if(viewMode==='continuous')return;
       if(e.target.closest&&e.target.closest('.textLayer span'))return;  // tapping text = read/translate
       if(e.target.closest&&e.target.closest('.nav-arrow'))return;
       const w=window.innerWidth;
@@ -1662,6 +1765,7 @@ stage.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault(); 
 function setView(mode){if(reading)stopReading();viewMode=mode;lsSet('reader_view',mode);if(mode==='spread'&&curPage%2===0&&curPage>1)curPage--;imgCache.clear();if(docType==='flow'&&flowRawBlocks.length)repaginateFlow();else if(pdfDoc)paintBook();else syncControls();}
 $('viewSingle').onclick=()=>setView('single');
 $('viewSpread').onclick=()=>setView('spread');
+$('viewContinuous').onclick=()=>setView('continuous');
 
 $('fsBtn').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();};
 
@@ -2132,7 +2236,63 @@ function updateAudioUI(){
   playBtn.querySelector('.ico').textContent=(reading&&!paused)?'⏸':'▶';
   if(typeof mUiAudio==='function'){ try{ mUiAudio(); }catch(e){} }
 }
-async function loadPage(){
+async function collectReadSentences(leaves,showOcr=true){
+  const out=[];
+  if(docType==='flow'){
+    leaves.forEach(leaf=>{
+      leaf.querySelectorAll('.textLayer.flowtext span').forEach(sp=>{
+        const t=(sp.textContent||'').trim();if(!t)return;
+        out.push({text:t,spans:[sp],startSpan:sp,parts:[{span:sp,so:0,eo:(sp.textContent||'').length}]});
+      });
+    });
+    return out;
+  }
+  for(const leaf of leaves){
+    const idx=+leaf.dataset.page,tl=leaf.querySelector('.textLayer');if(!tl)continue;
+    if(!tl.querySelector('span')&&idx>=1&&idx<=totalPages){
+      try{
+        if(showOcr)showLoading('這頁是掃描圖片，正在辨識文字（OCR）…');
+        const rec=await ocrPage(idx);if(rec&&rec.words&&rec.words.length)injectOcrSpans(tl,rec);
+      }catch(e){console.error('OCR failed',e);}
+      finally{if(showOcr)hideLoading();}
+    }
+    const spans=[...tl.querySelectorAll('span')];if(spans.length)out.push(...buildSentences(spans,tl));
+  }
+  return out;
+}
+let readAhead=null;
+async function prepareReadAhead(page,tk){
+  if(page<1||page>totalPages||!reading||tk!==readToken)return null;
+  let leaves=[];
+  if(viewMode==='continuous'){
+    const leaf=await ensureContinuousLeaf(page);if(leaf)leaves=[leaf];
+  }else{
+    const render=docType==='flow'?(i,c)=>renderFlowLeaf(i,c):(i,c)=>renderLeaf(i,c);
+    const count=(viewMode==='spread'&&totalPages>1)?2:1;
+    for(let n=0;n<count&&page+n<=totalPages;n++)leaves.push(await render(page+n,n===0&&count===2?'left':(count===2?'right':'single')));
+  }
+  if(!reading||tk!==readToken)return null;
+  let measure=null,preparedSentences=[];
+  try{
+    if(viewMode!=='continuous'){
+      measure=document.createElement('div');measure.className='book'+(viewMode==='spread'?' spread':'');
+      measure.style.cssText='position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;z-index:-1';
+      leaves.forEach(l=>measure.appendChild(l));document.body.appendChild(measure);
+    }
+    preparedSentences=await collectReadSentences(leaves,false);
+  }finally{if(measure)measure.remove();}
+  if(!reading||tk!==readToken)return null;
+  if(engine!=='builtin'&&engine!=='gtranslate'){
+    await Promise.all(preparedSentences.slice(0,2).map(s=>getAudio(s.text).catch(()=>null)));
+  }
+  return {page,mode:viewMode,leaves,sentences:preparedSentences};
+}
+function beginReadAhead(tk){
+  const page=readPage+step();
+  if(page>totalPages||(readAhead&&readAhead.page===page&&readAhead.mode===viewMode))return;
+  readAhead={page,mode:viewMode,promise:prepareReadAhead(page,tk)};
+}
+async function loadPage(tk=readToken){
   if(viewMode==='spread'&&totalPages>1&&readPage%2===0&&readPage>1)readPage--;
   if(sleepMode==='chapter' && readPage>sleepChapterEnd){
     stopReading(); toast('📖 已讀完本章，自動停止朗讀（睡眠定時）');
@@ -2140,36 +2300,29 @@ async function loadPage(){
     return;
   }
   if(readPage>totalPages){stopReading();toast('整本已朗讀完畢');sentences=[];return;}
-  if(curPage!==readPage){curPage=readPage;await paintBook();stage.scrollTop=0;stage.scrollLeft=0;}
-  sentences=[];
-  if(docType==='flow'){
-    [...book.querySelectorAll('.textLayer.flowtext')].forEach(tl=>{
-      [...tl.querySelectorAll('span')].forEach(sp=>{
-        const t=(sp.textContent||'').trim(); if(!t)return;
-        sentences.push({text:t, spans:[sp], startSpan:sp, parts:[{span:sp,so:0,eo:(sp.textContent||'').length}]});
-      });
-    });
-    if(sentences.length===0){ readPage+=step(); return loadPage(); }
-    return;
+  let prepared=null;
+  if(readAhead&&readAhead.page===readPage&&readAhead.mode===viewMode){
+    const ahead=readAhead;readAhead=null;
+    try{prepared=await ahead.promise;}catch(e){prepared=null;}
+    if(!reading||tk!==readToken)return;
   }
-  // ---- PDF：先看原生文字層，沒有的話（掃描頁）就地做一次 OCR 再重試 ----
-  const leaves=[...book.querySelectorAll('.leaf[data-page]')];
-  for(const leaf of leaves){
-    const idx=+leaf.dataset.page; const tl=leaf.querySelector('.textLayer'); if(!tl)continue;
-    if(!tl.querySelector('span') && idx>=1 && idx<=totalPages){
-      try{
-        showLoading('這頁是掃描圖片，正在辨識文字（OCR）…');
-        const rec=await ocrPage(idx);
-        if(rec && rec.words && rec.words.length) injectOcrSpans(tl,rec);
-      }catch(e){ console.error('OCR failed',e); }
-      finally{ hideLoading(); }
-    }
+  if(curPage!==readPage){
+    curPage=readPage;
+    if(viewMode==='continuous')await scrollContinuousToPage(readPage,'smooth');
+    else if(prepared&&prepared.leaves.length){
+      paintToken++;book.className='book'+(viewMode==='spread'?' spread':'');book.innerHTML='';prepared.leaves.forEach(l=>book.appendChild(l));
+      syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));stage.scrollTop=0;stage.scrollLeft=0;
+    }else{await paintBook();stage.scrollTop=0;stage.scrollLeft=0;}
   }
-  [...book.querySelectorAll('.textLayer')].forEach(tl=>{
-    const spans=[...tl.querySelectorAll('span')];
-    if(spans.length) sentences.push(...buildSentences(spans, tl));
-  });
-  if(sentences.length===0){ readPage+=step(); return loadPage(); }
+  let leaves;
+  if(prepared&&prepared.sentences.length)sentences=prepared.sentences;
+  else if(viewMode==='continuous'){
+    const leaf=await ensureContinuousLeaf(readPage);leaves=leaf?[leaf]:[];
+    sentences=await collectReadSentences(leaves,true);
+  }else{
+    leaves=[...book.querySelectorAll('.leaf[data-page]')];sentences=await collectReadSentences(leaves,true);
+  }
+  if(sentences.length===0){ readPage+=step(); return loadPage(tk); }
 }
 function needsKey(e){return e==='google'||e==='eleven';}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
@@ -2183,13 +2336,14 @@ async function startReading(){
   if(reading&&paused){ paused=false; if(engine==='builtin')synth.resume(); else if(curAudio)curAudio.play().catch(()=>{}); updateAudioUI(); return; }
   if(engine==='builtin'&&!synth){ toast('此瀏覽器沒有內建語音，請改用其他語音來源'); return; }
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
-  reading=true;paused=false;readPage=curPage;ttsFails=0;updateAudioUI();
+  reading=true;paused=false;readPage=curPage;ttsFails=0;readAhead=null;updateAudioUI();
   document.body.classList.add('reading-on');
   const tk=++readToken;
   await loadPage(); if(reading&&tk===readToken)playFrom(0,tk);
 }
 function stopReading(){
   readToken++;                       // invalidate any in-flight reading loop
+  readAhead=null;
   reading=false;paused=false;
   document.body.classList.remove('reading-on');
   if(synth)synth.cancel();
@@ -2485,6 +2639,7 @@ async function playFrom(i,tk){
     await gatePause(); if(!reading||tk!==readToken)return;
     sIdx=i;
     const s=sentences[i];
+    if(i>=Math.max(0,sentences.length-2))beginReadAhead(tk);
     // pre-fetch this sentence's audio FIRST, so the highlight appears in sync with the voice
     let preUrl=null, fetchErr=false;
     if(engine!=='builtin'&&engine!=='gtranslate'){
@@ -2527,7 +2682,7 @@ async function playFrom(i,tk){
     if(!reading||tk!==readToken)return;
     i++;
   }
-  if(reading&&tk===readToken){ readPage+=step(); await loadPage(); if(reading&&tk===readToken)return playFrom(0,tk); }
+  if(reading&&tk===readToken){ readPage+=step(); await loadPage(tk); if(reading&&tk===readToken)return playFrom(0,tk); }
 }
 playBtn.onclick=startReading;
 stopBtn.onclick=stopReading;
@@ -3590,6 +3745,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     g+='<div class="m-sheet-sec">檢視</div><div class="m-grid">';
     g+=tile('📄','單頁',    'single', viewMode==='single');
     g+=tile('📖','雙頁',    'spread', viewMode==='spread');
+    g+=tile('↕️','向下捲動','continuous',viewMode==='continuous');
     g+=tile('➖', docType==='flow'?'縮小字':'縮小','zoomout');
     g+=tile('➕', docType==='flow'?'放大字':'放大','zoomin');
     g+='</div>';
@@ -3635,6 +3791,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
           export:()=>{closeSheet();click('exportBtn');},
           single:()=>{click('viewSingle'); openMainMenu();},
           spread:()=>{click('viewSpread'); openMainMenu();},
+          continuous:()=>{click('viewContinuous');openMainMenu();},
           zoomin:()=>{click('zoomIn');},
           zoomout:()=>{click('zoomOut');},
           ocr:()=>{closeSheet();click('ocrBtn');},
