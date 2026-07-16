@@ -27,6 +27,25 @@
   button{font-family:inherit;touch-action:manipulation}
   select,input[type=range]{touch-action:manipulation}
 
+  /* 三種高對比閱讀主題 */
+  body.theme-day{--stage:#e7edf3;--bar:#fff;--bar-line:#263341;--ink:#101820;--ink-dim:#344454;--paper:#fff;--brass:#8a5700;--brass-hi:#674100;--sel:rgba(180,118,0,.32)}
+  body.theme-sepia{--stage:#cbb991;--bar:#3d3325;--bar-line:#8e7952;--ink:#fffaf0;--ink-dim:#ead9ba;--paper:#f6edd9;--brass:#ffd166;--brass-hi:#ffe29a;--sel:rgba(173,111,0,.32)}
+  body.theme-night{--stage:#151920;--bar:#0d1117;--bar-line:#52606f;--ink:#fff;--ink-dim:#c6d0da;--paper:#121820;--brass:#ffd166;--brass-hi:#ffe29a;--sel:rgba(255,209,102,.40)}
+  body.theme-day .stage{background:linear-gradient(#f4f7fa,#dbe3ea)}
+  body.theme-sepia .stage{background:linear-gradient(#d9c9a7,#bba77d)}
+  body.theme-night .stage{background:radial-gradient(1000px 520px at 50% -10%,#27303b 0%,transparent 70%),var(--stage)}
+  body.theme-day .textLayer.flowtext{color:#111820;background:#fff}
+  body.theme-sepia .textLayer.flowtext{color:#2b2115;background:#f6edd9}
+  body.theme-night .textLayer.flowtext{color:#f8fafc;background:#121820}
+  body.theme-day .textLayer.flowtext h1,body.theme-day .textLayer.flowtext h2,body.theme-day .textLayer.flowtext h3{color:#101820}
+  body.theme-sepia .textLayer.flowtext h1,body.theme-sepia .textLayer.flowtext h2,body.theme-sepia .textLayer.flowtext h3{color:#2b2115}
+  body.theme-night .textLayer.flowtext h1,body.theme-night .textLayer.flowtext h2,body.theme-night .textLayer.flowtext h3{color:#fff}
+  body.theme-day .drop,body.theme-day .bookcard,body.theme-day .m-sheet,body.theme-day .drawer,body.theme-day .modal,body.theme-day .tpop,body.theme-day .wordcard{background:#fff;color:#101820}
+  body.theme-day .btn:not(.primary),body.theme-day .m-tile,body.theme-day .dtab,body.theme-day .sel,body.theme-day .pagebox input,body.theme-day .m-row select{background:#eef2f5;color:#101820;border-color:#263341}
+  body.theme-day .tpop .res,body.theme-day .wordcard .wc-zh{color:#101820}
+  body.theme-sepia .drop,body.theme-sepia .bookcard,body.theme-sepia .m-sheet,body.theme-sepia .drawer,body.theme-sepia .modal,body.theme-sepia .tpop,body.theme-sepia .wordcard{background:#3d3325;color:#fffaf0}
+  body.theme-sepia .btn:not(.primary),body.theme-sepia .m-tile,body.theme-sepia .dtab,body.theme-sepia .pagebox input,body.theme-sepia .m-row select{background:#514431;color:#fffaf0}
+
   .topbar{height:54px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--bar);border-bottom:1px solid var(--bar-line);position:relative;z-index:30}
   .brand{font-weight:700;letter-spacing:.5px;font-size:15px;display:flex;align-items:center;gap:8px;margin-right:6px;white-space:nowrap}
   .brand .lamp{width:10px;height:10px;border-radius:50%;background:var(--brass);box-shadow:0 0 10px var(--brass)}
@@ -100,6 +119,13 @@
   .drop h1{font-size:21px;margin:6px 0 8px;font-weight:700}
   .drop p{margin:6px 0;color:var(--ink-dim);font-size:14px;line-height:1.7;user-select:text}
   .drop .open{margin-top:18px}
+  .home-actions{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;width:100%}
+  .elder-toggle-home{min-height:54px;padding:0 22px;border:2px solid var(--brass);border-radius:14px;background:var(--bar);color:var(--ink);font-size:17px;font-weight:800;cursor:pointer}
+  .continue-card{display:none;width:min(720px,94vw);border:2px solid var(--brass);border-radius:18px;background:var(--bar);padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+  .continue-label{font-size:13px;color:var(--brass-hi);font-weight:800;letter-spacing:1px;margin-bottom:8px}
+  .continue-title{font-size:22px;line-height:1.4;font-weight:800;color:var(--ink);margin-bottom:5px;word-break:break-word}
+  .continue-meta{font-size:14px;color:var(--ink-dim);margin-bottom:15px}
+  .continue-btn{width:100%;min-height:64px;border:0;border-radius:14px;background:var(--brass);color:#1a1300;font-size:21px;font-weight:900;cursor:pointer}
 
   /* ---------- 書櫃 Library ---------- */
   .empty{overflow:auto}
@@ -341,11 +367,42 @@
   body.mark-mode .textLayer,body.mark-mode .textLayer *{touch-action:none!important}
   body.mark-mode .textLayer{cursor:crosshair}
 
+  /* 長輩模式：閱讀畫面只留下翻頁、播放、字級與更多 */
+  .elder-controls{display:none;position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:58;
+    width:min(760px,100%);grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;padding:7px max(7px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom,0)) max(7px,env(safe-area-inset-left));
+    background:var(--bar);border:2px solid var(--bar-line);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -8px 28px rgba(0,0,0,.4)}
+  .elder-control{min-width:0;height:66px;border:2px solid var(--bar-line);border-radius:13px;background:var(--bar);color:var(--ink);font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+  .elder-control .em{font-size:25px;line-height:1}
+  .elder-control.primary{background:var(--brass);color:#1a1300;border-color:var(--brass)}
+  .elder-control:disabled{opacity:.38}
+  body.elder-mode .topbar,body.elder-mode .bottombar,body.elder-mode .m-topbar,body.elder-mode .m-botbar,body.elder-mode .m-playbar{display:none!important}
+  body.elder-mode .nav-arrow{display:none!important}
+  body.elder-mode.has-doc:not(.home-open) .elder-controls{display:grid}
+  body.elder-mode.has-doc:not(.home-open) .stage{inset:0 0 82px 0!important}
+  body.elder-mode:not(.has-doc) .empty,body.elder-mode.home-open .empty{inset:0!important}
+  body.elder-mode .drop{padding:30px 24px}
+  body.elder-mode .drop h1{font-size:27px}
+  body.elder-mode .drop p{font-size:18px}
+  body.elder-mode .drop .hint{display:none}
+  body.elder-mode .bookcard .bn{font-size:17px;min-height:2.8em}
+  body.elder-mode .bookcard .bm{font-size:14px}
+  body.elder-mode .shelf h2{font-size:23px}
+  body.elder-mode .m-sheet-title{font-size:21px;padding:10px 0 14px}
+  body.elder-mode .m-sheet{left:50%;right:auto;width:min(620px,100%);transform:translateX(-50%)}
+  body.elder-mode .m-tile{font-size:16px;min-height:92px;font-weight:800}
+  body.elder-mode .m-tile .em{font-size:30px}
+  body.elder-mode .m-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  body.elder-mode .m-sheet-sec{font-size:15px;color:var(--brass-hi);font-weight:800}
+
   @media (max-width:640px){
     body.m-ui .topbar,body.m-ui .bottombar{display:none}
     body.m-ui .m-topbar,body.m-ui .m-botbar{display:flex}
     body.m-ui .stage{inset:48px 0 54px 0}
     body.m-ui.m-immersive .stage{inset:0}
+    body.elder-mode .elder-controls{grid-template-columns:repeat(3,minmax(0,1fr));width:100%;border-radius:15px 15px 0 0}
+    body.elder-mode .elder-control{height:58px;font-size:12px;flex-direction:row;gap:5px}
+    body.elder-mode .elder-control .em{font-size:21px}
+    body.elder-mode.has-doc:not(.home-open) .stage{inset:0 0 137px 0!important}
   }
 
   @media (max-width:640px){
@@ -412,6 +469,7 @@
     <div class="brand"><span class="lamp"></span><span class="t">翻頁閱讀器</span></div>
     <button class="btn primary" id="openBtn"><span class="ico">📂</span><span class="t">開啟 PDF</span></button>
     <button class="btn" id="shelfBtn" title="我的書櫃"><span class="ico">📚</span><span class="t">書櫃</span></button>
+    <button class="btn" id="elderBtn" title="切換長輩模式" aria-pressed="false"><span class="ico">👓</span><span class="t">長輩模式</span></button>
     <button class="btn" id="tocBtn" title="目錄" disabled><span class="ico">☰</span><span class="t">目錄</span></button>
     <button class="btn" id="searchBtn" title="搜尋這本書 (/)" disabled><span class="ico">🔎</span><span class="t">搜尋</span></button>
     <button class="btn" id="bmBtn" title="書籤這一頁 (B)" disabled><span class="ico">🔖</span><span class="t">書籤</span></button>
@@ -468,8 +526,26 @@
     <button class="nav-arrow right" id="nextArrow" title="下一頁 (→)">›</button>
   </div>
 
+  <div class="elder-controls" id="elderControls" aria-label="長輩模式閱讀控制">
+    <button class="elder-control" id="elderPrev"><span class="em">←</span><span>上一頁</span></button>
+    <button class="elder-control primary" id="elderPlay"><span class="em">▶</span><span class="elder-play-text">播放</span></button>
+    <button class="elder-control" id="elderNext"><span class="em">→</span><span>下一頁</span></button>
+    <button class="elder-control" id="elderFontMinus"><span class="em">A−</span><span>小一點</span></button>
+    <button class="elder-control" id="elderFontPlus"><span class="em">A＋</span><span>大一點</span></button>
+    <button class="elder-control" id="elderMore"><span class="em">⋯</span><span>更多</span></button>
+  </div>
+
   <div class="empty" id="empty">
     <div class="empty-inner">
+      <div class="home-actions">
+        <button class="elder-toggle-home" id="elderHomeBtn" aria-pressed="false">👓 開啟長輩模式</button>
+      </div>
+      <div class="continue-card" id="continueCard">
+        <div class="continue-label">繼續閱讀</div>
+        <div class="continue-title" id="continueTitle"></div>
+        <div class="continue-meta" id="continueMeta"></div>
+        <button class="continue-btn" id="continueBtn">▶ 繼續閱讀</button>
+      </div>
       <div class="shelf" id="shelf">
         <h2><span class="lamp"></span>我的書庫 <span class="shelf-usage" id="shelfUsage"></span>
           <span class="shelf-actions">
@@ -520,11 +596,11 @@
       <option value="local">譯源：本機/代理</option>
     </select>
     <select class="sel" id="engineSel" title="語音來源">
-      <option value="gtranslate">Google 翻譯語音（非官方，可能失效）</option>
-      <option value="local">本機語音伺服器 (Kokoro)</option>
-      <option value="builtin">內建語音</option>
-      <option value="mobile">手機自然語音（安全雲端）</option>
-      <option value="eleven">ElevenLabs</option>
+      <option value="gtranslate">免費線上語音</option>
+      <option value="local">電腦自然語音</option>
+      <option value="builtin">裝置內建語音</option>
+      <option value="mobile">手機自然語音（推薦）</option>
+      <option value="eleven">高品質雲端語音</option>
     </select>
     <select class="sel" id="rateSel" title="語速">
       <option value="0.8">0.8x</option><option value="1" selected>1x</option>
@@ -661,6 +737,24 @@ const IS_MOBILE = window.matchMedia('(max-width:640px)').matches || ('ontouchsta
 let mUiSync=null, mUiAudio=null;   // 手機介面更新 hook（供 syncControls / updateAudioUI 呼叫）
 let lastCloudError='';             // 記錄雲端語音最近一次的實際失敗原因，供錯誤提示顯示
 if(IS_MOBILE && lsGet('reader_view','')===''){ viewMode='single'; }   // phones default to single page
+let elderMode=lsGet('reader_elder_mode','0')==='1';
+let readerTheme=lsGet('reader_theme',elderMode?'sepia':'night');
+if(!['day','sepia','night'].includes(readerTheme)) readerTheme='night';
+function applyReaderTheme(theme,announce=false){
+  if(!['day','sepia','night'].includes(theme))return;
+  readerTheme=theme;
+  document.body.classList.remove('theme-day','theme-sepia','theme-night');
+  document.body.classList.add('theme-'+theme);
+  lsSet('reader_theme',theme);
+  document.querySelectorAll('[data-theme]').forEach(el=>el.classList.toggle('on',el.dataset.theme===theme));
+  if(announce)toast({day:'已切換為白天主題',sepia:'已切換為米黃主題',night:'已切換為夜間主題'}[theme]);
+}
+function friendlyEngineName(which){
+  return {gtranslate:'免費線上語音',local:'電腦自然語音',builtin:'裝置內建語音',mobile:'手機自然語音',eleven:'高品質雲端語音'}[which]||'自然語音';
+}
+document.body.classList.toggle('elder-mode',elderMode);
+applyReaderTheme(readerTheme,false);
+
 
 /* ---------- file ---------- */
 const openPicker=()=>$('fileInput').click();
@@ -704,6 +798,7 @@ async function loadFile(file,fromLib=false){
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     const saved=parseInt(lsGet(fileKey,'1'))||1;
     curPage=Math.min(Math.max(1,saved),totalPages);
+    if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); zoom=Math.max(zoom,1.15); fitMode='width'; lsSet('reader_zoom',String(zoom)); }
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook();
     if(myToken!==loadToken)return;
@@ -743,6 +838,7 @@ async function loadFlowFile(file,kind,fromLib=false){
     fileKey='pg_'+file.name+'_'+file.size;
     loadAnno(); loadBookmarks(); resetSearchIndex();
     detectedFlowShape=detectFlowShape(blocks);
+    if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); if(flowFontScale<1.35)setFlowFontScale(1.35); }
     showLoading('正在為「'+file.name+'」分頁…');
     const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
     if(cancelled||myToken!==loadToken)return;
@@ -1142,11 +1238,16 @@ async function openFromLibrary(id){
 function escHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtMB(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';}
 async function renderShelf(){
-  const shelf=$('shelf'),grid=$('shelfGrid'),dropZone=$('drop');
+  const shelf=$('shelf'),grid=$('shelfGrid'),dropZone=$('drop'),continueCard=$('continueCard');
   let books=[]; try{books=await libAll()||[];}catch(e){}
-  if(!books.length){shelf.style.display='none';dropZone.style.display='';return;}
+  if(!books.length){shelf.style.display='none';dropZone.style.display='';continueCard.style.display='none';syncElderUi();return;}
   dropZone.style.display='none';
   books.sort((a,b)=>(b.lastOpened||0)-(a.lastOpened||0));
+  const recent=books[0],recentPage=parseInt(lsGet(recent.id,'1'))||1;
+  $('continueTitle').textContent=(recent.name||'上次閱讀的書').replace(/\.(pdf|docx|epub)$/i,'');
+  $('continueMeta').textContent='從第 '+recentPage+' 頁繼續'+(recent.pages?' · 共 '+recent.pages+' 頁':'');
+  $('continueBtn').onclick=()=>openFromLibrary(recent.id);
+  continueCard.style.display='block';
   shelf.style.display='block'; grid.innerHTML='';
   for(const b of books){
     const last=parseInt(lsGet(b.id,'1'))||1;
@@ -1184,6 +1285,7 @@ $('shelfBtn').onclick=()=>{
   const showing=empty.style.display!=='none';
   if(showing&&docLoaded()){empty.style.display='none';}
   else{empty.style.display='flex';renderShelf();updateUsage();}
+  syncElderUi();
 };
 $('autoSaveChk').checked=lsGet('reader_autosave','1')==='1';
 $('autoSaveChk').onchange=e=>lsSet('reader_autosave',e.target.checked?'1':'0');
@@ -1701,6 +1803,7 @@ function syncControls(){
   $('viewSingle').classList.toggle('on',viewMode==='single');
   $('viewSpread').classList.toggle('on',viewMode==='spread');
   $('viewContinuous').classList.toggle('on',viewMode==='continuous');
+  syncElderUi();
   if(typeof mUiSync==='function'){ try{ mUiSync(); }catch(e){} }
 }
 $('prevArrow').onclick=()=>turnTo(-1);
@@ -1786,6 +1889,44 @@ $('viewSingle').onclick=()=>setView('single');
 $('viewSpread').onclick=()=>setView('spread');
 $('viewContinuous').onclick=()=>setView('continuous');
 
+function syncElderUi(){
+  const loaded=docLoaded();
+  const homeOpen=empty.style.display!=='none';
+  document.body.classList.toggle('elder-mode',elderMode);
+  document.body.classList.toggle('has-doc',loaded);
+  document.body.classList.toggle('home-open',homeOpen);
+  const main=$('elderBtn'),home=$('elderHomeBtn');
+  if(main){ main.classList.toggle('on',elderMode); main.setAttribute('aria-pressed',String(elderMode)); main.querySelector('.t').textContent=elderMode?'完整模式':'長輩模式'; }
+  if(home){ home.classList.toggle('on',elderMode); home.setAttribute('aria-pressed',String(elderMode)); home.textContent=elderMode?'✓ 長輩模式已開啟':'👓 開啟長輩模式'; }
+  const prev=$('elderPrev'),next=$('elderNext'),play=$('elderPlay');
+  if(prev)prev.disabled=!loaded||curPage<=1;
+  if(next)next.disabled=!loaded||curPage>=totalPages;
+  if(play){
+    play.disabled=!loaded;
+    play.querySelector('.em').textContent=(reading&&!paused)?'⏸':'▶';
+    play.querySelector('.elder-play-text').textContent=(reading&&!paused)?'暫停':'播放';
+  }
+}
+async function setElderMode(on,announce=true){
+  elderMode=!!on;
+  lsSet('reader_elder_mode',elderMode?'1':'0');
+  document.body.classList.remove('m-immersive');
+  if(elderMode){
+    viewMode='continuous'; lsSet('reader_view','continuous');
+    if(docLoaded()&&docType==='flow'){
+      if(flowFontScale<1.35)setFlowFontScale(1.35);
+      await repaginateFlow();
+    }else if(docLoaded()){
+      zoom=Math.max(zoom,1.15); fitMode='width'; lsSet('reader_zoom',String(zoom)); imgCache.clear();
+      await paintBook();
+    }
+  }
+  syncElderUi(); syncControls();
+  if(announce)toast(elderMode?'已開啟長輩模式':'已回到完整模式');
+}
+$('elderBtn').onclick=()=>setElderMode(!elderMode);
+$('elderHomeBtn').onclick=()=>setElderMode(!elderMode);
+
 $('fsBtn').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();};
 
 /* ---------- audiobook (multi-engine TTS + sentence highlight) ---------- */
@@ -1840,10 +1981,10 @@ function populateVoiceSel(){
   voiceSel.innerHTML='';
   let list=[];
   if(engine==='builtin') list=voices.map(v=>({id:v.voiceURI,label:v.name+' ('+v.lang+')'}));
-  else if(engine==='gtranslate') list=[{id:'auto',label:'自動：英文／中文'}];
-  else if(engine==='local') list=[{id:'auto',label:'自動：英文／中文（依 ⚙ 設定）'}];
-  else if(engine==='mobile') list=[{id:'auto',label:'自動：英文／中文（Google Cloud）'}];
-  else if(engine==='eleven') list=elevenVoices.length?elevenVoices:[{id:'',label:'（請在 ⚙ 設定載入語音）'}];
+  else if(engine==='gtranslate') list=[{id:'auto',label:'自動選擇中英文語音'}];
+  else if(engine==='local') list=[{id:'auto',label:'自動選擇中英文語音'}];
+  else if(engine==='mobile') list=[{id:'auto',label:'自動選擇中英文語音'}];
+  else if(engine==='eleven') list=elevenVoices.length?elevenVoices:[{id:'',label:'（請先完成進階設定）'}];
   if(!list.length) list=[{id:'',label:'（無可用語音）'}];
   list.forEach(v=>{const o=document.createElement('option');o.value=v.id;o.textContent=v.label;voiceSel.appendChild(o);});
   let saved=lsGet('tts_voice_'+engine,'');
@@ -2253,6 +2394,7 @@ function ensureVisible(el){
 function updateAudioUI(){
   playBtn.classList.toggle('playing',reading&&!paused);
   playBtn.querySelector('.ico').textContent=(reading&&!paused)?'⏸':'▶';
+  syncElderUi();
   if(typeof mUiAudio==='function'){ try{ mUiAudio(); }catch(e){} }
 }
 async function collectReadSentences(leaves,showOcr=true){
@@ -3773,6 +3915,7 @@ async function enterReflowMode(){
       if(blocks.length<3){ toast('目前辨識的文字太少，請先按「辨識文字」完成整本 OCR 再試'); hideLoading(); return; }
       try{ const rec=await libGet(fileKey); if(rec){ rec.reflowBlocks=blocks; await libPut(rec); } }catch(e){}
     }
+    if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); if(flowFontScale<1.35)setFlowFontScale(1.35); }
     detectedFlowShape=detectFlowShape(blocks);
     const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
     if(cancelled||myToken!==loadToken)return;
@@ -3877,6 +4020,45 @@ async function runBatchOcr(){
 $('ocrBtn').onclick=()=>{ if(ocrBatchRunning){ toast('正在辨識中…'); return; } runBatchOcr(); };
 ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
 
+/* 長輩模式的大型閱讀控制與「更多」選單。技術設定仍保留在完整模式，這裡只顯示日常功能。 */
+function closeElderMenu(){ $('mSheet').style.display='none'; $('mSheetBg').style.display='none'; }
+function openElderMenu(){
+  const tile=(emoji,label,act,on=false)=>'<button class="m-tile'+(on?' on':'')+'" data-elder-act="'+act+'"><span class="em">'+emoji+'</span>'+label+'</button>';
+  let html='<div class="m-sheet-sec">閱讀工具</div><div class="m-grid">';
+  html+=tile('🏠','回到首頁','home');
+  html+=tile('🔖',bookmarks.has(curPage)?'移除書籤':'加入書籤','bookmark',bookmarks.has(curPage));
+  html+=tile('🖍',touchMarkMode?'結束劃記':'開始劃記','mark',touchMarkMode);
+  html+=tile('📒','查看劃記','marks');
+  html+=tile('↶','撤銷劃記','undo');
+  html+=tile('🌙','睡眠播放','sleep');
+  html+='</div><div class="m-sheet-sec">高對比主題</div><div class="m-grid">';
+  html+=tile('☀️','白天','theme-day',readerTheme==='day');
+  html+=tile('📜','米黃','theme-sepia',readerTheme==='sepia');
+  html+=tile('🌙','夜間','theme-night',readerTheme==='night');
+  html+=tile('⚙️','完整模式','full');
+  html+='</div>';
+  $('mSheetTitle').textContent='更多'; $('mSheetBody').innerHTML=html;
+  $('mSheet').style.display='block'; $('mSheetBg').style.display='block'; $('mSheetBg').onclick=closeElderMenu;
+  $('mSheetBody').querySelectorAll('[data-elder-act]').forEach(btn=>btn.onclick=()=>{
+    const act=btn.dataset.elderAct;
+    if(act==='home'){ empty.style.display='flex'; renderShelf(); updateUsage(); syncElderUi(); closeElderMenu(); }
+    else if(act==='bookmark'){ toggleBookmark(); openElderMenu(); }
+    else if(act==='mark'){ setTouchMarkMode(!touchMarkMode); closeElderMenu(); }
+    else if(act==='marks'){ closeElderMenu(); switchDrawerTab('anno'); openDrawer(); }
+    else if(act==='undo'){ undoLastAnnotation(); openElderMenu(); }
+    else if(act==='sleep'){ closeElderMenu(); $('sleepBgBtn').click(); }
+    else if(act.startsWith('theme-')){ applyReaderTheme(act.slice(6),true); openElderMenu(); }
+    else if(act==='full'){ closeElderMenu(); setElderMode(false); }
+  });
+}
+$('elderPrev').onclick=()=>{ if(docLoaded())jumpTo(curPage-1); };
+$('elderNext').onclick=()=>{ if(docLoaded())jumpTo(curPage+1); };
+$('elderPlay').onclick=()=>{ if(docLoaded())$('playBtn').click(); };
+$('elderFontMinus').onclick=()=>{ if(docLoaded())$('zoomOut').click(); };
+$('elderFontPlus').onclick=()=>{ if(docLoaded())$('zoomIn').click(); };
+$('elderMore').onclick=openElderMenu;
+syncElderUi();
+
 /* ============================================================
    手機極簡閱讀介面：把控制項收進選單面板，閱讀時介面乾淨
    ============================================================ */
@@ -3897,7 +4079,9 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
   function mainMenuHTML(){
     const canRead=docLoaded();
     const tile=(emoji,label,act,on,dis)=>`<button class="m-tile${on?' on':''}" data-act="${act}"${dis?' disabled':''}><span class="em">${emoji}</span>${label}</button>`;
-    let g='<div class="m-sheet-sec">書籍</div><div class="m-grid">';
+    let g='<div class="m-sheet-sec">閱讀模式</div><div class="m-grid">';
+    g+=tile('👓','長輩模式','elder',elderMode);
+    g+='</div><div class="m-sheet-sec">書籍</div><div class="m-grid">';
     g+=tile('📂','開啟檔案','open');
     g+=tile('📚','書櫃','shelf');
     g+=tile('☰','目錄','toc',false,!canRead);
@@ -3917,6 +4101,11 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     g+=tile('➖', docType==='flow'?'縮小字':'縮小','zoomout');
     g+=tile('➕', docType==='flow'?'放大字':'放大','zoomin');
     g+='</div>';
+    g+='<div class="m-sheet-sec">高對比主題</div><div class="m-grid">';
+    g+=tile('☀️','白天','theme-day',readerTheme==='day');
+    g+=tile('📜','米黃','theme-sepia',readerTheme==='sepia');
+    g+=tile('🌙','夜間','theme-night',readerTheme==='night');
+    g+='</div>';
     let extras='';
     if($('ocrBtn').style.display!=='none') extras+=tile('🔍','辨識文字','ocr');
     if($('reflowBtn').style.display!=='none') extras+=tile('🔤','重排模式','reflow',reflowMode);
@@ -3927,7 +4116,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     g+=tile('🌙','睡眠背景播放','sleepbg',false,!canRead);
     g+=tile('🎙','語音設定','voice');
     g+=tile('🎨','標示顏色','hlcolor');
-    g+=tile('⚙','服務設定','voicegear');
+    g+=tile('⚙','進階設定','voicegear');
     g+='</div>';
     return g;
   }
@@ -3944,7 +4133,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     if($('voiceSel').options.length) h+='<div class="m-row"><label>語音</label><select id="mVoiceSel">'+opts('voiceSel')+'</select></div>';
     h+='<div class="m-row"><label>睡眠定時</label><select id="mSleepSel">'+opts('sleepSel')+'</select></div>';
     h+='<div class="m-row"><label>標示顏色</label><select id="mHlSel">'+opts('hlSel')+'</select></div>';
-    h+='<div class="m-sheet-sec">語音服務</div><div class="m-grid"><button class="m-tile" data-act="sleepbg"><span class="em">🌙</span>睡眠背景播放</button><button class="m-tile" data-act="voicegear"><span class="em">⚙</span>服務設定</button></div>';
+    h+='<div class="m-sheet-sec">其他設定</div><div class="m-grid"><button class="m-tile" data-act="sleepbg"><span class="em">🌙</span>睡眠背景播放</button><button class="m-tile" data-act="voicegear"><span class="em">⚙</span>進階設定</button></div>';
     return h;
   }
 
@@ -3955,6 +4144,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
       t.onclick=()=>{
         const act=t.dataset.act;
         const acts={
+          elder:()=>{closeSheet();setElderMode(true);},
           open:()=>{closeSheet();click('openBtn');},
           shelf:()=>{closeSheet();click('shelfBtn');},
           toc:()=>{closeSheet();click('tocBtn');},
@@ -3967,6 +4157,9 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
           single:()=>{click('viewSingle'); openMainMenu();},
           spread:()=>{click('viewSpread'); openMainMenu();},
           continuous:()=>{click('viewContinuous');openMainMenu();},
+          'theme-day':()=>{applyReaderTheme('day',true);openMainMenu();},
+          'theme-sepia':()=>{applyReaderTheme('sepia',true);openMainMenu();},
+          'theme-night':()=>{applyReaderTheme('night',true);openMainMenu();},
           zoomin:()=>{click('zoomIn');},
           zoomout:()=>{click('zoomOut');},
           ocr:()=>{closeSheet();click('ocrBtn');},
@@ -4017,7 +4210,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
   function updatePlaybar(){
     mPlayToggle.textContent=(reading&&!paused)?'⏸':'▶';
     $('mSpeakerBtn').classList.toggle('on',reading);
-    if(mPlaySub){ const es=$('engineSel'); mPlaySub.textContent=(es&&es.selectedOptions[0])?es.selectedOptions[0].textContent:''; }
+    if(mPlaySub)mPlaySub.textContent=friendlyEngineName(engine);
   }
   // 播放/暫停一律交給原本的朗讀鈕處理：它已包含內建與雲端語音各自的暫停/續播邏輯
   // （手機自行切換 paused 旗標的話，雲端語音的音檔不會真的停下來）
