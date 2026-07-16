@@ -190,6 +190,7 @@
   .read-trans .rt-res{font-size:16px;color:#fff;line-height:1.6;user-select:text}
   .read-trans .rt-res.loading{color:var(--ink-dim);font-style:italic}
   .textLayer span.anno{cursor:pointer}
+  mark.anno-fragment{color:inherit;padding:0;border-radius:2px;cursor:pointer;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 
   /* ---------- flow 文件（docx / epub）排版 ---------- */
   .textLayer.flowtext{position:static;inset:auto;overflow:hidden;padding:52px 44px;box-sizing:border-box;
@@ -274,7 +275,7 @@
   .kbd-table kbd{background:#1c212a;border:1px solid var(--bar-line);border-radius:5px;padding:2px 7px;font-size:12px;color:var(--brass-hi);display:inline-block}
 
   /* ============ 手機極簡閱讀介面（預設隱藏，只在手機顯示） ============ */
-  .m-topbar,.m-botbar,.m-playbar,.m-sheet,.m-sheet-bg{display:none}
+  .m-topbar,.m-botbar,.m-playbar,.m-sheet,.m-sheet-bg,.m-markbar{display:none}
   .m-topbar{position:absolute;top:0;left:0;right:0;height:48px;z-index:40;
     align-items:center;gap:10px;padding:0 8px;
     background:rgba(19,22,28,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--bar-line);
@@ -328,6 +329,13 @@
   .m-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--bar-line)}
   .m-row label{font-size:13px;color:var(--ink);flex:0 0 auto}
   .m-row select{flex:1;max-width:62%;height:38px;background:#1c212a;border:1px solid var(--bar-line);color:var(--ink);border-radius:9px;padding:0 8px;font-size:13px}
+  .m-markbar{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:55;align-items:center;gap:9px;
+    max-width:calc(100vw - 24px);white-space:nowrap;padding:7px 8px 7px 12px;border-radius:999px;
+    color:#1a1300;background:rgba(245,222,90,.96);box-shadow:0 6px 20px rgba(0,0,0,.36);font-size:12px;font-weight:700}
+  .m-markbar button{border:0;border-radius:999px;padding:6px 11px;background:#1a1300;color:#fff;font-size:12px;font-weight:700;touch-action:manipulation}
+  body.mark-mode .m-markbar{display:flex}
+  body.mark-mode .textLayer,body.mark-mode .textLayer *{touch-action:none!important}
+  body.mark-mode .textLayer{cursor:crosshair}
 
   @media (max-width:640px){
     body.m-ui .topbar,body.m-ui .bottombar{display:none}
@@ -360,6 +368,10 @@
     <button class="m-iconbtn" id="mMenuBtn" title="選單" aria-label="選單">☰</button>
     <div class="m-title" id="mTitle">翻頁閱讀器</div>
     <button class="m-iconbtn" id="mBookmarkBtn" title="書籤目前頁面" aria-label="書籤目前頁面">🔖</button>
+  </div>
+
+  <div class="m-markbar" id="mMarkBar" role="status">
+    <span>🖍 手指拖過文字即可劃記</span><button id="mMarkDone" type="button">完成</button>
   </div>
 
   <div class="m-botbar" id="mBotbar">
@@ -3176,19 +3188,35 @@ let annotations={};
 function loadAnno(){ try{annotations=JSON.parse(lsGet('anno_'+fileKey,'{}'))||{};}catch(e){annotations={};} }
 function saveAnno(){ try{lsSet('anno_'+fileKey,JSON.stringify(annotations));}catch(e){} }
 function spanMapFull(spans){ const map=new Map(); let full=''; spans.forEach(sp=>{const t=sp.textContent||'';const s=full.length;full+=t;map.set(sp,{start:s,end:full.length});full+=' ';}); return {map,full}; }
+function wrapAnnoPart(sp,from,to,a){
+  const nodes=[]; let pos=0;
+  const walker=document.createTreeWalker(sp,NodeFilter.SHOW_TEXT);
+  while(walker.nextNode()){ const node=walker.currentNode,len=node.data.length; nodes.push({node,start:pos,end:pos+len}); pos+=len; }
+  nodes.forEach(n=>{
+    const lo=Math.max(from,n.start)-n.start, hi=Math.min(to,n.end)-n.start;
+    if(hi<=lo)return;
+    const range=document.createRange(); range.setStart(n.node,lo); range.setEnd(n.node,hi);
+    const mark=document.createElement('mark'); mark.className='anno-fragment '+(a.type==='u'?'anno-u':'anno-h'); mark.dataset.annoId=a.id;
+    if(a.type==='h') mark.style.background=a.color;
+    else{ mark.style.background='transparent'; mark.style.textDecoration='underline'; mark.style.textDecorationColor=a.color; mark.style.textDecorationThickness='2px'; mark.style.textUnderlineOffset='2px'; }
+    if(a.note)mark.title='📝 '+a.note;
+    try{range.surroundContents(mark);}catch(e){}
+  });
+}
 function applyAnnotations(leaf){
   const page=+leaf.dataset.page;
-  const list=annotations[page]; if(!list||!list.length)return;
+  let old; while((old=leaf.querySelector('mark.anno-fragment')))old.replaceWith(...old.childNodes);
   const spans=[...leaf.querySelectorAll('.textLayer span')];
+  spans.forEach(sp=>{sp.normalize();sp.classList.remove('anno');delete sp.dataset.annoId;sp.style.background='';sp.style.borderBottom='';if((sp.title||'').startsWith('📝 '))sp.removeAttribute('title');});
+  const list=annotations[page]; if(!list||!list.length)return;
   const {map}=spanMapFull(spans);
   list.forEach(a=>{
-    spans.forEach(sp=>{const m=map.get(sp); if(m&&m.end>a.start&&m.start<a.end){
-      sp.classList.add('anno'); sp.dataset.annoId=a.id;
-      if(a.type==='h') sp.style.background=a.color;
-      else sp.style.borderBottom='2px solid '+a.color;
-      if(a.note){ sp.title='📝 '+a.note; }
-    }});
+    spans.forEach(sp=>{const m=map.get(sp); if(m&&m.end>a.start&&m.start<a.end)wrapAnnoPart(sp,Math.max(0,a.start-m.start),Math.min(m.end-m.start,a.end-m.start),a);});
   });
+}
+function offsetInsideSpan(sp,node,offset){
+  if(!(sp===node||sp.contains(node)))return null;
+  try{const r=document.createRange();r.selectNodeContents(sp);r.setEnd(node,offset);return r.toString().length;}catch(e){return null;}
 }
 function annotateSelection(type,color){
   const sel=window.getSelection(); if(!sel.rangeCount){toast('請先選取文字');return;}
@@ -3196,11 +3224,18 @@ function annotateSelection(type,color){
   let node=range.startContainer; node=node.nodeType===3?node.parentElement:node;
   const leaf=node&&node.closest?node.closest('.leaf'):null;
   if(!leaf||leaf.dataset.page==null){toast('這一頁無法標記（可能是圖片頁）');return;}
+  let endNode=range.endContainer;endNode=endNode.nodeType===3?endNode.parentElement:endNode;
+  if(!endNode||!endNode.closest||endNode.closest('.leaf')!==leaf){toast('一次只能標記同一頁的文字');return;}
   const spans=[...leaf.querySelectorAll('.textLayer span')];
   const hit=spans.filter(sp=>(sp.textContent||'').trim()&&range.intersectsNode(sp));
   if(!hit.length){toast('請先選取文字');return;}
   const {map}=spanMapFull(spans);
-  const start=map.get(hit[0]).start, end=map.get(hit[hit.length-1]).end;
+  let start=map.get(hit[0]).start, end=map.get(hit[hit.length-1]).end;
+  const localStart=offsetInsideSpan(hit[0],range.startContainer,range.startOffset);
+  const localEnd=offsetInsideSpan(hit[hit.length-1],range.endContainer,range.endOffset);
+  if(localStart!=null)start+=localStart;
+  if(localEnd!=null)end=map.get(hit[hit.length-1]).start+localEnd;
+  if(end<=start){toast('請拖過想標記的文字');return;}
   const page=+leaf.dataset.page;
   const a={id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),start,end,type,color,note:''};
   (annotations[page]=annotations[page]||[]).push(a);
@@ -3210,6 +3245,72 @@ function annotateSelection(type,color){
 }
 $('aHi').onclick=()=>annotateSelection('h','rgba(245,222,90,.55)');
 $('aUl').onclick=()=>annotateSelection('u','#e0533d');
+
+/* 手機劃記模式：手指拖過文字，放開後直接存成螢光標記。模式關閉時仍保留原本的滑動翻頁／捲動。 */
+let touchMarkMode=false,touchMarkDrag=null;
+function domPointAtTextOffset(sp,offset){
+  const walker=document.createTreeWalker(sp,NodeFilter.SHOW_TEXT);let left=Math.max(0,offset),last=null;
+  while(walker.nextNode()){const n=walker.currentNode;last=n;if(left<=n.data.length)return {node:n,offset:left};left-=n.data.length;}
+  return last?{node:last,offset:last.data.length}:null;
+}
+function markPointAt(x,y,leafOnly){
+  let node=null,offset=0;
+  try{
+    if(document.caretPositionFromPoint){const p=document.caretPositionFromPoint(x,y);if(p){node=p.offsetNode;offset=p.offset;}}
+    else if(document.caretRangeFromPoint){const r=document.caretRangeFromPoint(x,y);if(r){node=r.startContainer;offset=r.startOffset;}}
+  }catch(e){}
+  let el=node?(node.nodeType===3?node.parentElement:node):null;
+  let sp=el&&el.closest?el.closest('.textLayer span'):null;
+  if(!sp){const hit=document.elementFromPoint(x,y);sp=hit&&hit.closest?hit.closest('.textLayer span'):null;}
+  if(!sp)return null;
+  const leaf=sp.closest('.leaf');if(!leaf||(leafOnly&&leaf!==leafOnly))return null;
+  if(!node||!(sp===node||sp.contains(node))){
+    const r=sp.getBoundingClientRect(),ratio=r.width?Math.max(0,Math.min(1,(x-r.left)/r.width)):0;
+    const p=domPointAtTextOffset(sp,Math.round((sp.textContent||'').length*ratio));if(!p)return null;node=p.node;offset=p.offset;
+  }
+  return {node,offset,leaf};
+}
+function rangeBetweenPoints(a,b){
+  try{
+    const ar=document.createRange(),br=document.createRange(),out=document.createRange();
+    ar.setStart(a.node,a.offset);ar.collapse(true);br.setStart(b.node,b.offset);br.collapse(true);
+    if(ar.compareBoundaryPoints(Range.START_TO_START,br)<=0){out.setStart(a.node,a.offset);out.setEnd(b.node,b.offset);}
+    else{out.setStart(b.node,b.offset);out.setEnd(a.node,a.offset);}
+    return out;
+  }catch(e){return null;}
+}
+function showTouchMarkRange(end){
+  if(!touchMarkDrag)return;
+  const range=rangeBetweenPoints(touchMarkDrag.start,end);if(!range)return;
+  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);touchMarkDrag.end=end;
+}
+function setTouchMarkMode(on){
+  touchMarkMode=!!on;touchMarkDrag=null;document.body.classList.toggle('mark-mode',touchMarkMode);document.body.classList.remove('m-immersive');
+  const sel=window.getSelection();if(sel)sel.removeAllRanges();
+  if(touchMarkMode){if(reading)stopReading();hideTPop();hideWordCard();hideAnnoPop();toast('劃記模式：用手指拖過文字，放開即可標記');}
+}
+$('mMarkDone').onclick=()=>setTouchMarkMode(false);
+stage.addEventListener('touchstart',e=>{
+  if(!touchMarkMode||e.touches.length!==1)return;
+  const t=e.touches[0],p=markPointAt(t.clientX,t.clientY,null);if(!p)return;
+  e.preventDefault();e.stopPropagation();touchMarkDrag={start:p,end:p,x:t.clientX,y:t.clientY,moved:false};showTouchMarkRange(p);
+},{capture:true,passive:false});
+stage.addEventListener('touchmove',e=>{
+  if(!touchMarkMode||!touchMarkDrag||e.touches.length!==1)return;
+  e.preventDefault();e.stopPropagation();const t=e.touches[0],p=markPointAt(t.clientX,t.clientY,touchMarkDrag.start.leaf);
+  if(Math.hypot(t.clientX-touchMarkDrag.x,t.clientY-touchMarkDrag.y)>4)touchMarkDrag.moved=true;
+  if(p)showTouchMarkRange(p);
+},{capture:true,passive:false});
+stage.addEventListener('touchend',e=>{
+  if(!touchMarkMode||!touchMarkDrag)return;
+  e.preventDefault();e.stopPropagation();
+  const t=e.changedTouches&&e.changedTouches[0],p=t&&markPointAt(t.clientX,t.clientY,touchMarkDrag.start.leaf);if(p)showTouchMarkRange(p);
+  const sel=window.getSelection(),text=sel?sel.toString().trim():'';
+  if(touchMarkDrag.moved&&text)annotateSelection('h','rgba(245,222,90,.55)');
+  else{if(sel)sel.removeAllRanges();toast('請按住並拖過想標記的文字');}
+  touchMarkDrag=null;
+},{capture:true,passive:false});
+stage.addEventListener('touchcancel',()=>{touchMarkDrag=null;const sel=window.getSelection();if(sel)sel.removeAllRanges();},{capture:true});
 
 /* note popup on clicking an existing mark */
 const annoPop=$('annoPop'),annoNote=$('annoNote');
@@ -3231,7 +3332,7 @@ document.addEventListener('click',e=>{
   if(annoPop.contains(e.target)||tpop.contains(e.target)||wordCard.contains(e.target)||(readTrans&&readTrans.contains(e.target)))return;
   if(window.getSelection().toString().trim())return;       // a fresh selection → let translate handle it
   hideWordCard();
-  const mark=e.target.closest&&e.target.closest('.textLayer span.anno');
+  const mark=e.target.closest&&e.target.closest('mark.anno-fragment,.textLayer span.anno');
   if(mark){ openAnnoPop(mark); return; }                    // clicking a mark edits its note
   hideAnnoPop();
   const sp=e.target.closest&&e.target.closest('.textLayer span');
@@ -3741,6 +3842,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     g+=tile('☰','目錄','toc',false,!canRead);
     g+=tile('🔎','搜尋','search',false,!canRead);
     g+=tile('🔖','書籤','bm',false,!canRead);
+    g+=tile('🖍','劃記模式','mark',touchMarkMode,!canRead);
     g+=tile('📤','匯出','export',false,!canRead);
     g+='</div>';
     g+='<div class="m-sheet-sec">檢視</div><div class="m-grid">';
@@ -3789,6 +3891,7 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
           toc:()=>{closeSheet();click('tocBtn');},
           search:()=>{closeSheet();click('searchBtn');},
           bm:()=>{click('bmBtn'); openMainMenu();},
+          mark:()=>{closeSheet();setTouchMarkMode(!touchMarkMode);},
           export:()=>{closeSheet();click('exportBtn');},
           single:()=>{click('viewSingle'); openMainMenu();},
           spread:()=>{click('viewSpread'); openMainMenu();},
