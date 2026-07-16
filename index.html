@@ -421,6 +421,7 @@
     .sel{max-width:46vw}
     .pagebox{white-space:nowrap}
     .scroller{padding:12px}
+    .scroller.continuous-scroller{padding:10px 8px 48px}
   }
 </style>
 </head>
@@ -1014,8 +1015,9 @@ function detectFlowShape(blocks){
   return (avg>1.2 && wideCount/ratios.length>0.55) ? 'landscape' : 'portrait';
 }
 function effectiveFlowShape(){ return flowPageShape==='auto' ? detectedFlowShape : flowPageShape; }
+function pageSideGap(){ return (IS_MOBILE&&viewMode==='continuous') ? 16 : 90; }
 function flowPageSize(){
-  const availW=stage.clientWidth-90, availH=stage.clientHeight-60;
+  const availW=stage.clientWidth-pageSideGap(), availH=stage.clientHeight-60;
   const across=(viewMode==='spread')?2:1;
   const maxW=availW/across;
   if(effectiveFlowShape()==='landscape'){
@@ -1026,7 +1028,7 @@ function flowPageSize(){
     h=Math.max(260,Math.min(availH,w/targetRatio));
     return {w:Math.floor(w), h:Math.floor(h)};
   }
-  const w=Math.max(280,Math.min(680, maxW));
+  const w=Math.max(280,Math.min((IS_MOBILE&&viewMode==='continuous')?960:680, maxW));
   const h=Math.max(320, availH);
   return {w:Math.floor(w), h:Math.floor(h)};
 }
@@ -1295,7 +1297,7 @@ renderShelf(); updateUsage();
 /* ---------- scale ---------- */
 function fitScaleFor(page){
   const v1=page.getViewport({scale:1});
-  const availW=stage.clientWidth-90, availH=stage.clientHeight-60;
+  const availW=stage.clientWidth-pageSideGap(), availH=stage.clientHeight-60;
   const across=(viewMode==='spread'&&totalPages>1)?2:1;
   if(fitMode==='page') return Math.min((availW/across)/v1.width,availH/v1.height);
   return (availW/across)/v1.width;       // fit width (default)
