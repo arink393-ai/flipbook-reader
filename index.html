@@ -283,6 +283,7 @@
     font-size:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;
     touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .m-iconbtn:active{background:rgba(255,255,255,.08)}
+  .m-iconbtn.on{color:var(--brass-hi);background:rgba(214,161,74,.14)}
   .m-title{flex:1;text-align:center;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
   .m-botbar{position:absolute;bottom:0;left:0;right:0;height:54px;z-index:40;
     align-items:center;gap:10px;padding:0 10px;padding-bottom:env(safe-area-inset-bottom,0);
@@ -358,7 +359,7 @@
   <div class="m-topbar" id="mTopbar">
     <button class="m-iconbtn" id="mMenuBtn" title="選單" aria-label="選單">☰</button>
     <div class="m-title" id="mTitle">翻頁閱讀器</div>
-    <button class="m-iconbtn" id="mSearchBtn" title="搜尋" aria-label="搜尋">🔎</button>
+    <button class="m-iconbtn" id="mBookmarkBtn" title="書籤目前頁面" aria-label="書籤目前頁面">🔖</button>
   </div>
 
   <div class="m-botbar" id="mBotbar">
@@ -3817,7 +3818,10 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
   }
 
   $('mMenuBtn').onclick=openMainMenu;
-  $('mSearchBtn').onclick=()=>click('searchBtn');
+  $('mBookmarkBtn').onclick=()=>{
+    if(!docLoaded()){ toast('請先開啟一本書'); return; }
+    toggleBookmark();
+  };
   // 字級：直接沿用既有的 +/− 邏輯（flow 調字級、PDF 調縮放），並把百分比就地顯示出來
   let fontFlashUntil=0, fontFlashT=0;
   function flashFontPct(){
@@ -3863,6 +3867,10 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     try{
       mTitle.textContent=($('filename').textContent)||'翻頁閱讀器';
       mSlider.max=totalPages||1; mSlider.value=curPage;
+      const bookmarkBtn=$('mBookmarkBtn'), marked=docLoaded()&&bookmarks.has(curPage);
+      bookmarkBtn.classList.toggle('on',marked);
+      bookmarkBtn.title=marked?'取消目前頁面的書籤':'書籤目前頁面';
+      bookmarkBtn.setAttribute('aria-label',bookmarkBtn.title);
       // 剛調整字級時，這一行暫時顯示百分比，別馬上被頁碼蓋掉
       if(Date.now()>fontFlashUntil) mPageInfo.textContent=(docLoaded()? curPage+' / '+(totalPages||'–') : '– / –');
       updatePlaybar();
