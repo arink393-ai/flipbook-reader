@@ -241,7 +241,7 @@
   .toc-empty{padding:20px 16px;color:var(--ink-dim);font-size:13px;line-height:1.8}
   .overlay{position:absolute;inset:54px 0 56px 0;background:rgba(0,0,0,.45);z-index:44;display:none}
 
-  /* drawer tabs: 目錄 / 書籤 / 搜尋 */
+  /* drawer tabs: 目錄 / 書籤 / 劃記 / 搜尋 */
   .drawer-tabs{display:flex;gap:4px;padding:10px 10px 0}
   .dtab{flex:1;background:#1c212a;border:1px solid var(--bar-line);color:var(--ink-dim);border-radius:8px 8px 0 0;padding:8px 4px;font-size:12.5px;cursor:pointer}
   .dtab.on{background:#222732;color:var(--brass-hi);border-bottom-color:#222732}
@@ -256,6 +256,9 @@
   .bm-row button.bm-link{flex:1;text-align:left;background:none;border:none;color:var(--ink);font-size:12.5px;cursor:pointer;line-height:1.5}
   .bm-row button.bm-link .pg{color:var(--brass-hi);font-weight:700;display:block;font-size:12px}
   .bm-row button.bm-del{background:none;border:1px solid var(--bar-line);color:var(--ink-dim);border-radius:6px;width:26px;height:26px;cursor:pointer;flex:0 0 auto}
+  .anno-snippet{display:block;color:var(--ink);margin-top:2px}
+  .anno-note{display:block;color:var(--ink-dim);font-size:11.5px;margin-top:4px}
+  .anno-summary{padding:10px 14px;color:var(--ink-dim);font-size:12px;border-bottom:1px solid var(--bar-line)}
 
   /* 書籤絲帶（頁面右上角） */
   .leaf.bookmarked::after{content:"🔖";position:absolute;top:-8px;right:16px;font-size:24px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.55));z-index:6;pointer-events:none}
@@ -332,7 +335,8 @@
   .m-markbar{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:55;align-items:center;gap:9px;
     max-width:calc(100vw - 24px);white-space:nowrap;padding:7px 8px 7px 12px;border-radius:999px;
     color:#1a1300;background:rgba(245,222,90,.96);box-shadow:0 6px 20px rgba(0,0,0,.36);font-size:12px;font-weight:700}
-  .m-markbar button{border:0;border-radius:999px;padding:6px 11px;background:#1a1300;color:#fff;font-size:12px;font-weight:700;touch-action:manipulation}
+  .m-markbar button{border:0;border-radius:999px;padding:6px 9px;background:#1a1300;color:#fff;font-size:12px;font-weight:700;touch-action:manipulation}
+  .m-markbar button:disabled{opacity:.4}
   body.mark-mode .m-markbar{display:flex}
   body.mark-mode .textLayer,body.mark-mode .textLayer *{touch-action:none!important}
   body.mark-mode .textLayer{cursor:crosshair}
@@ -371,7 +375,7 @@
   </div>
 
   <div class="m-markbar" id="mMarkBar" role="status">
-    <span>🖍 手指拖過文字即可劃記</span><button id="mMarkDone" type="button">完成</button>
+    <span>🖍 拖過文字即可劃記</span><button id="mMarkUndo" type="button">↶ 撤銷</button><button id="mMarkDone" type="button">完成</button>
   </div>
 
   <div class="m-botbar" id="mBotbar">
@@ -444,10 +448,12 @@
     <div class="drawer-tabs" id="drawerTabs">
       <button class="dtab on" data-tab="toc">☰ 目錄</button>
       <button class="dtab" data-tab="bm">🔖 書籤</button>
+      <button class="dtab" data-tab="anno">🖍 劃記</button>
       <button class="dtab" data-tab="search">🔎 搜尋</button>
     </div>
     <div class="toc-scroll" id="tocList"></div>
     <div class="toc-scroll" id="bmList" style="display:none"></div>
+    <div class="toc-scroll" id="annoList" style="display:none"></div>
     <div class="search-panel" id="searchPanel" style="display:none">
       <input type="search" id="searchInput" placeholder="輸入關鍵字，例如 collocation…">
       <div class="search-status" id="searchStatus"></div>
@@ -2947,8 +2953,10 @@ function switchDrawerTab(tab){
   document.querySelectorAll('.dtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
   $('tocList').style.display = tab==='toc' ? '' : 'none';
   $('bmList').style.display = tab==='bm' ? '' : 'none';
+  $('annoList').style.display = tab==='anno' ? '' : 'none';
   $('searchPanel').style.display = tab==='search' ? 'flex' : 'none';
   if(tab==='bm') renderBookmarkList();
+  if(tab==='anno') renderAnnotationList($('annoList'));
   if(tab==='search' && !searchIndexReady && !searchIndexBuilding) ensureSearchIndex();
 }
 document.querySelectorAll('.dtab').forEach(b=>{ b.onclick=()=>switchDrawerTab(b.dataset.tab); });
@@ -3185,8 +3193,30 @@ $('wcHi').onclick=()=>{ annotateSelection('h','rgba(245,222,90,.55)'); hideWordC
 
 /* ---------- annotations (highlight / underline + notes) ---------- */
 let annotations={};
-function loadAnno(){ try{annotations=JSON.parse(lsGet('anno_'+fileKey,'{}'))||{};}catch(e){annotations={};} }
+function loadAnno(){ try{annotations=JSON.parse(lsGet('anno_'+fileKey,'{}'))||{};}catch(e){annotations={};} if(typeof syncAnnotationUI==='function')syncAnnotationUI(); }
 function saveAnno(){ try{lsSet('anno_'+fileKey,JSON.stringify(annotations));}catch(e){} }
+function annotationCount(){return Object.values(annotations).reduce((n,list)=>n+(Array.isArray(list)?list.length:0),0);}
+function annotationTime(a){
+  const saved=Number(a&&a.createdAt);if(saved)return saved;
+  const id=String(a&&a.id||'');const parsed=parseInt(id.length>4?id.slice(1,-3):id.slice(1),36);return Number.isFinite(parsed)?parsed:0;
+}
+function syncAnnotationUI(){const undo=$('mMarkUndo');if(undo)undo.disabled=annotationCount()===0;}
+function removeAnnotationById(id,repaint=true){
+  for(const p in annotations){
+    const list=annotations[p],idx=Array.isArray(list)?list.findIndex(a=>a.id===id):-1;
+    if(idx<0)continue;
+    list.splice(idx,1);if(!list.length)delete annotations[p];saveAnno();syncAnnotationUI();
+    if(typeof curAnno!=='undefined'&&curAnno&&curAnno.a&&curAnno.a.id===id)hideAnnoPop();
+    if(repaint)paintBook();return +p;
+  }
+  return 0;
+}
+function undoLastAnnotation(){
+  let newest=null,seq=0;
+  for(const p in annotations){for(const a of annotations[p]){const item={a,page:+p,time:annotationTime(a),seq:seq++};if(!newest||item.time>newest.time||(item.time===newest.time&&item.seq>newest.seq))newest=item;}}
+  if(!newest){syncAnnotationUI();toast('目前沒有可撤銷的劃記');return false;}
+  removeAnnotationById(newest.a.id,true);toast('已撤銷第 '+newest.page+' 頁的上一筆劃記');return true;
+}
 function spanMapFull(spans){ const map=new Map(); let full=''; spans.forEach(sp=>{const t=sp.textContent||'';const s=full.length;full+=t;map.set(sp,{start:s,end:full.length});full+=' ';}); return {map,full}; }
 function wrapAnnoPart(sp,from,to,a){
   const nodes=[]; let pos=0;
@@ -3237,9 +3267,10 @@ function annotateSelection(type,color){
   if(localEnd!=null)end=map.get(hit[hit.length-1]).start+localEnd;
   if(end<=start){toast('請拖過想標記的文字');return;}
   const page=+leaf.dataset.page;
-  const a={id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),start,end,type,color,note:''};
+  const now=Date.now();
+  const a={id:'a'+now.toString(36)+Math.random().toString(36).slice(2,5),createdAt:now,start,end,type,color,note:''};
   (annotations[page]=annotations[page]||[]).push(a);
-  saveAnno(); applyAnnotations(leaf);
+  saveAnno(); syncAnnotationUI(); applyAnnotations(leaf);
   hideTPop(); sel.removeAllRanges();
   toast(type==='h'?'已螢光標記':'已畫底線');
 }
@@ -3290,6 +3321,8 @@ function setTouchMarkMode(on){
   if(touchMarkMode){if(reading)stopReading();hideTPop();hideWordCard();hideAnnoPop();toast('劃記模式：用手指拖過文字，放開即可標記');}
 }
 $('mMarkDone').onclick=()=>setTouchMarkMode(false);
+$('mMarkUndo').onclick=undoLastAnnotation;
+syncAnnotationUI();
 stage.addEventListener('touchstart',e=>{
   if(!touchMarkMode||e.touches.length!==1)return;
   const t=e.touches[0],p=markPointAt(t.clientX,t.clientY,null);if(!p)return;
@@ -3342,7 +3375,7 @@ document.addEventListener('click',e=>{
   }
 });
 $('annoSave').onclick=()=>{ if(!curAnno)return; annotations[curAnno.page][curAnno.idx].note=annoNote.value.trim(); saveAnno(); paintBook(); hideAnnoPop(); toast('已儲存筆記'); };
-$('annoRemove').onclick=()=>{ if(!curAnno)return; annotations[curAnno.page].splice(curAnno.idx,1); if(!annotations[curAnno.page].length)delete annotations[curAnno.page]; saveAnno(); paintBook(); hideAnnoPop(); toast('已移除標記'); };
+$('annoRemove').onclick=()=>{ if(!curAnno)return; const id=curAnno.a.id; removeAnnotationById(id,true); toast('已移除標記'); };
 annoPop.addEventListener('mousedown',e=>e.stopPropagation());
 
 /* ---------- 匯出引擎（生字清單 / 筆記摘要 共用）---------- */
@@ -3392,6 +3425,34 @@ function downloadTextFile(filename,content,mime){
 }
 function bookBaseName(){ return ($('filename').textContent||'書本').replace(/\.(pdf|docx|epub)$/i,'').replace(/[\\/:*?"<>|]/g,'_'); }
 function annotatedPages(){ return Object.keys(annotations).map(Number).filter(p=>annotations[p]&&annotations[p].length).sort((a,b)=>a-b); }
+let annotationListToken=0;
+async function renderAnnotationList(list,onNavigate){
+  if(!list)return;
+  const myToken=++annotationListToken,pages=annotatedPages();
+  list.innerHTML='<div class="toc-empty">'+(pages.length?'正在整理劃記內容…':'目前還沒有劃記。開啟「劃記模式」，用手指拖過文字即可加入。')+'</div>';
+  if(!pages.length)return;
+  const entries=[];
+  for(const page of pages){
+    const full=await getPageFullTextForAnno(page);
+    for(const a of (annotations[page]||[]).slice())entries.push({page,a,text:(full?full.slice(a.start,a.end):'').trim().replace(/\s+/g,' ')||'（此頁文字無法取得）'});
+  }
+  if(myToken!==annotationListToken||!list.isConnected)return;
+  entries.sort((x,y)=>x.page-y.page||x.a.start-y.a.start);
+  list.innerHTML='';
+  const summary=document.createElement('div');summary.className='anno-summary';summary.textContent='共 '+entries.length+' 筆劃記，分布在 '+pages.length+' 頁';list.appendChild(summary);
+  entries.forEach(entry=>{
+    const row=document.createElement('div');row.className='bm-row anno-row';
+    const link=document.createElement('button');link.className='bm-link';link.type='button';
+    const meta=document.createElement('span');meta.className='pg';meta.textContent='第 '+entry.page+' 頁 · '+(entry.a.type==='u'?'底線':'螢光');
+    const snippet=document.createElement('span');snippet.className='anno-snippet';snippet.textContent=entry.text;
+    link.appendChild(meta);link.appendChild(snippet);
+    if(entry.a.note){const note=document.createElement('span');note.className='anno-note';note.textContent='📝 '+entry.a.note;link.appendChild(note);}
+    link.onclick=()=>{setTouchMarkMode(false);if(onNavigate)onNavigate();jumpTo(entry.page);};
+    const del=document.createElement('button');del.className='bm-del';del.type='button';del.title='刪除這筆劃記';del.setAttribute('aria-label','刪除這筆劃記');del.textContent='🗑';
+    del.onclick=()=>{removeAnnotationById(entry.a.id,true);renderAnnotationList(list,onNavigate);toast('已刪除這筆劃記');};
+    row.appendChild(link);row.appendChild(del);list.appendChild(row);
+  });
+}
 
 async function exportVocabCSV(){
   const pages=annotatedPages().filter(p=>annotations[p].some(a=>a.type==='h'));
@@ -3842,8 +3903,12 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     g+=tile('☰','目錄','toc',false,!canRead);
     g+=tile('🔎','搜尋','search',false,!canRead);
     g+=tile('🔖','書籤','bm',false,!canRead);
-    g+=tile('🖍','劃記模式','mark',touchMarkMode,!canRead);
     g+=tile('📤','匯出','export',false,!canRead);
+    g+='</div>';
+    g+='<div class="m-sheet-sec">劃記</div><div class="m-grid">';
+    g+=tile('🖍',touchMarkMode?'結束劃記':'開始劃記','mark',touchMarkMode,!canRead);
+    g+=tile('📒','查看劃記','marks',false,!canRead||!annotationCount());
+    g+=tile('↶','撤銷劃記','undo',false,!canRead||!annotationCount());
     g+='</div>';
     g+='<div class="m-sheet-sec">檢視</div><div class="m-grid">';
     g+=tile('📄','單頁',    'single', viewMode==='single');
@@ -3867,6 +3932,10 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
     return g;
   }
   function openMainMenu(){ openSheet('選單', mainMenuHTML()); }
+  async function openMarksSheet(){
+    openSheet('劃記內容','<div id="mAnnoList"><div class="toc-empty">正在整理劃記內容…</div></div>');
+    await renderAnnotationList($('mAnnoList'),closeSheet);
+  }
 
   function voiceMenuHTML(){
     const opts=(sel)=>[...$(sel).options].map(o=>`<option value="${o.value}"${o.selected?' selected':''}>${o.textContent}</option>`).join('');
@@ -3892,6 +3961,8 @@ ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
           search:()=>{closeSheet();click('searchBtn');},
           bm:()=>{click('bmBtn'); openMainMenu();},
           mark:()=>{closeSheet();setTouchMarkMode(!touchMarkMode);},
+          marks:()=>openMarksSheet(),
+          undo:()=>{undoLastAnnotation();openMainMenu();},
           export:()=>{closeSheet();click('exportBtn');},
           single:()=>{click('viewSingle'); openMainMenu();},
           spread:()=>{click('viewSpread'); openMainMenu();},
