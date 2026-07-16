@@ -154,6 +154,8 @@
   .spin{width:34px;height:34px;border:3px solid #3a4150;border-top-color:var(--brass);border-radius:50%;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);background:#111419;border:1px solid #333a47;color:var(--ink);padding:10px 16px;border-radius:10px;font-size:13px;z-index:70;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  /* 不用 display:none：讓 iOS 把它視為持續存在的原生媒體元素，鎖屏時交給系統音訊管線。 */
+  .sleep-audio{position:fixed;left:-2px;bottom:-2px;width:1px;height:1px;opacity:.01;pointer-events:none;z-index:-1}
 
   .sel{height:32px;background:#222732;border:1px solid var(--bar-line);color:var(--ink);border-radius:7px;font-size:12px;padding:0 6px;cursor:pointer;max-width:150px}
   .btn.playing{background:var(--brass);color:#1a1300;border-color:var(--brass);font-weight:600}
@@ -461,6 +463,7 @@
   </div>
 
   <div class="loading" id="loading"><div class="spin"></div><div id="loadingText">載入中…</div></div>
+  <audio id="sleepAudio" class="sleep-audio" preload="auto" playsinline aria-hidden="true"></audio>
 
   <div class="read-trans" id="readTrans">
     <div class="rt-label">朗讀翻譯（繁體中文）</div>
@@ -473,7 +476,10 @@
     <button class="btn" id="stopBtn" title="停止朗讀">⏹</button>
     <select class="sel" id="sleepSel" title="睡眠定時：時間到自動停止朗讀">
       <option value="0">⏰ 定時：關閉</option>
+      <option value="5">5 分鐘後停止</option>
+      <option value="10">10 分鐘後停止</option>
       <option value="15">15 分鐘後停止</option>
+      <option value="20">20 分鐘後停止</option>
       <option value="30">30 分鐘後停止</option>
       <option value="45">45 分鐘後停止</option>
       <option value="60">60 分鐘後停止</option>
@@ -1756,14 +1762,17 @@ async function mobileTTS(text){
   }
   return URL.createObjectURL(await r.blob());
 }
-async function mobileTTSBatch(text){
+async function mobileTTSPrepare(text){
   const base=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim().replace(/\/$/,'');
   if(!/^https:\/\//i.test(base))throw new Error('請先設定手機自然語音的 HTTPS Worker 網址');
   const zh=hasCJK(text);
   const voice=zh?lsGet('tts_mobile_zh','cmn-TW-Wavenet-A'):lsGet('tts_mobile_en','en-US-Neural2-F');
-  const r=await fetch(base+'/tts-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate})});
-  if(!r.ok){let msg='HTTP '+r.status;try{const j=await r.json();if(j&&j.error)msg=j.error;}catch(e){}throw new Error(msg);}
-  return URL.createObjectURL(await r.blob());
+  const r=await fetch(base+'/tts-prepare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate})});
+  let j=null;try{j=await r.json();}catch(e){}
+  if(!r.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
+  const audioUrl=String(j&&j.audioUrl||'');
+  if(!/^https:\/\//i.test(audioUrl))throw new Error('語音服務沒有回傳有效的音訊網址');
+  return audioUrl;
 }
 async function elevenTTS(text){
   const key=keyFor('eleven'); if(!key)throw new Error('缺少 ElevenLabs API 金鑰');
@@ -2184,9 +2193,9 @@ function stopReading(){
   reading=false;paused=false;
   document.body.classList.remove('reading-on');
   if(synth)synth.cancel();
-  stopAudio();
-  if(backgroundSleepUrl){try{URL.revokeObjectURL(backgroundSleepUrl);}catch(e){}backgroundSleepUrl=null;}
   backgroundSleep=false;
+  stopAudio();
+  if(backgroundSleepUrl){if(/^blob:/i.test(backgroundSleepUrl)){try{URL.revokeObjectURL(backgroundSleepUrl);}catch(e){}}backgroundSleepUrl=null;}
   if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='none';}catch(e){}}
   clearHL();updateAudioUI();
   readTrans.style.display='none';
@@ -2272,7 +2281,14 @@ async function showReadTrans(text,nextText){
 let audioSession=0;                // 播放場次編號：共用同一個 audio 元素時，用它辨識「這次播放」是否已被取代
 function stopAudio(){
   audioSession++;                  // 讓仍在跑的舊計時迴圈自己收手
-  if(curAudio){ try{ curAudio.pause(); curAudio.onended=null; curAudio.onerror=null; curAudio.src=''; }catch(e){} curAudio=null; }
+  if(curAudio){
+    try{
+      curAudio.pause();curAudio.loop=false;
+      curAudio.onended=null;curAudio.onerror=null;curAudio.onplay=null;curAudio.onpause=null;
+      curAudio.ontimeupdate=null;curAudio.onloadedmetadata=null;curAudio.src='';
+    }catch(e){}
+    curAudio=null;
+  }
 }
 /* play one <audio> url, resolves on end. Always stops any prior audio first.
    onTime(currentTime,duration) fires ~each frame so callers can move a word highlight. */
@@ -2520,10 +2536,19 @@ async function startSleepBackground(){
   if(backgroundSleep){stopReading();toast('已停止睡眠背景播放');return;}
   const worker=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim();
   if(!worker){engine='mobile';engineSel.value='mobile';populateVoiceSel();openTtsSettings();toast('請先設定手機自然語音 Worker');return;}
-  let mins=parseInt($('sleepSel').value,10);if(!Number.isFinite(mins)||mins<=0)mins=30;
-  clearSleepTimer();sleepMode='off';stopReading();unlockAudio();
-  const a=sharedAudio||(sharedAudio=new Audio());curAudio=a;
-  try{await a.play();}catch(e){}
+  const selected=$('sleepSel').value;
+  let mins=parseInt(selected,10);
+  if(!Number.isFinite(mins)||mins<5||mins>60){toast('請先在「⏰ 定時」選擇 5～60 分鐘，再按睡眠背景播放');return;}
+  clearSleepTimer();sleepMode='timer';stopReading();
+
+  // 使用固定存在於頁面裡的原生 audio，並在點擊當下循環播放靜音，保住 iOS 的播放授權。
+  // 真正音訊改用 HTTPS 網址，避免大型 blob: 在鎖屏後被 WebKit 暫停或回收。
+  const a=$('sleepAudio');
+  if(!a){toast('找不到背景音訊播放器');return;}
+  a.loop=true;
+  a.src=worker.replace(/\/$/,'')+'/silence.wav';
+  curAudio=a;
+  try{await a.play();}catch(e){stopReading();toast('手機阻擋了音訊啟動，請再按一次睡眠背景播放');return;}
   showLoading('正在準備 '+mins+' 分鐘的睡眠背景音訊…');
   try{
     let text='',estimated=0,lastPage=curPage;
@@ -2536,23 +2561,34 @@ async function startSleepBackground(){
       const keep=Math.max(1,Math.floor(text.length*(mins/estimated)));
       text=text.slice(0,keep).replace(/\s+\S*$/,'').trim();estimated=estimateMinutesForText(text);
     }
-    const url=await mobileTTSBatch(text);
-    if(curAudio!==a){URL.revokeObjectURL(url);return;}
+    const url=await mobileTTSPrepare(text);
+    if(curAudio!==a)return;
     backgroundSleepUrl=url;backgroundSleep=true;reading=true;paused=false;readPage=lastPage;
-    a.src=url;a.preload='auto';
+    document.body.classList.add('reading-on');
+    a.loop=false;a.src=url;a.preload='auto';a.load();
     a.onended=()=>{if(curAudio!==a)return;stopReading();$('sleepSel').value='0';toast('🌙 睡眠背景播放已結束');};
     a.onerror=()=>{if(curAudio!==a)return;stopReading();toast('背景音訊播放失敗，請重新準備');};
+    a.onplay=()=>{paused=false;if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='playing';}catch(e){}}updateAudioUI();};
+    a.onpause=()=>{if(backgroundSleep){paused=true;if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='paused';}catch(e){}}updateAudioUI();}};
+    const syncPosition=()=>{
+      if(!('mediaSession' in navigator)||!navigator.mediaSession.setPositionState)return;
+      const d=a.duration,t=a.currentTime;
+      if(Number.isFinite(d)&&d>0&&Number.isFinite(t)){try{navigator.mediaSession.setPositionState({duration:d,playbackRate:a.playbackRate||1,position:Math.min(t,d)});}catch(e){}}
+    };
+    a.onloadedmetadata=syncPosition;a.ontimeupdate=syncPosition;
     if('mediaSession' in navigator){
       try{
         navigator.mediaSession.metadata=new MediaMetadata({title:'睡眠背景朗讀',artist:document.title||'翻頁閱讀器',album:'約 '+Math.round(estimated)+' 分鐘'});
         navigator.mediaSession.setActionHandler('play',()=>{a.play().catch(()=>{});paused=false;updateAudioUI();});
         navigator.mediaSession.setActionHandler('pause',()=>{a.pause();paused=true;updateAudioUI();});
+        navigator.mediaSession.setActionHandler('seekto',e=>{if(Number.isFinite(e.seekTime)){a.currentTime=Math.max(0,Math.min(e.seekTime,a.duration||e.seekTime));syncPosition();}});
+        navigator.mediaSession.setActionHandler('seekbackward',e=>{a.currentTime=Math.max(0,a.currentTime-(e.seekOffset||15));syncPosition();});
+        navigator.mediaSession.setActionHandler('seekforward',e=>{a.currentTime=Math.min(a.duration||Infinity,a.currentTime+(e.seekOffset||15));syncPosition();});
         navigator.mediaSession.setActionHandler('stop',()=>stopReading());
-        navigator.mediaSession.playbackState='playing';
       }catch(e){}
     }
-    await a.play();updateAudioUI();
-    toast('🌙 已開始約 '+Math.round(estimated)+' 分鐘背景播放，現在可以鎖定螢幕');
+    await a.play();syncPosition();updateAudioUI();
+    toast('🌙 已開始約 '+Math.round(estimated)+' 分鐘背景播放；聽到聲音後即可鎖定螢幕');
   }catch(e){if(curAudio===a)stopReading();toast('無法開始背景播放：'+(e&&e.message?e.message:'未知錯誤'));}
   finally{hideLoading();}
 }
@@ -2641,7 +2677,7 @@ function openTtsSettings(){
         +'<label>英文語音</label><select id="ttsMobileEn">'+GOOGLE_VOICES.map(v=>'<option value="'+v.id+'"'+(v.id===gEn?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
         +'<label>中文語音（台灣國語）</label><select id="ttsMobileZh">'+GOOGLE_VOICES_ZH.map(v=>'<option value="'+v.id+'"'+(v.id===gZh?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
         +'<button class="btn" id="ttsTestMobile" style="margin-top:12px">🔌 測試手機自然語音</button>'
-        +'<p>Worker 端會執行每日字數上限。網路失敗時，正式朗讀會自動退回裝置內建語音。</p>';
+        +'<p>Worker 端會執行每日字數上限。網路失敗時，正式朗讀會自動退回裝置內建語音。iPhone 鎖屏播放請用 Safari 開啟網站，避免 LINE／Facebook／Instagram 的內建瀏覽器。</p>';
   }else if(engine==='eleven'){
     html='<p>ElevenLabs 提供最自然的語音。需要妳自己的 API 金鑰；金鑰只會存在這台裝置的瀏覽器，並只直接送給 ElevenLabs。</p>'
         +'<label>ElevenLabs API 金鑰</label><input id="ttsKey" type="password" placeholder="sk_..." value="'+keyFor('eleven').replace(/"/g,'&quot;')+'">'
