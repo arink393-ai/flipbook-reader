@@ -599,7 +599,6 @@
     </select>
     <select class="sel" id="engineSel" title="語音來源">
       <option value="gtranslate">免費線上語音</option>
-      <option value="local">電腦自然語音</option>
       <option value="builtin">裝置內建語音</option>
       <option value="mobile">手機自然語音（推薦）</option>
       <option value="eleven">高品質雲端語音</option>
@@ -1937,6 +1936,7 @@ const synth=window.speechSynthesis;
 const playBtn=$('playBtn'),stopBtn=$('stopBtn'),voiceSel=$('voiceSel'),rateSel=$('rateSel'),engineSel=$('engineSel');
 let engine=lsGet('tts_engine','builtin');
 if(engine==='google')engine='mobile';
+if(engine==='local'){engine='builtin';lsSet('tts_engine',engine);}
 const MOBILE_TTS_WORKER_DEFAULT='https://reader-mobile-tts.reader-tts-f0b859.workers.dev';
 let rate=parseFloat(lsGet('reader_rate','1'))||1;
 let voices=[],builtinVoice=null,elevenVoices=[];
