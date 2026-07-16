@@ -367,7 +367,7 @@
   body.mark-mode .textLayer,body.mark-mode .textLayer *{touch-action:none!important}
   body.mark-mode .textLayer{cursor:crosshair}
 
-  /* 長輩模式：閱讀畫面只留下翻頁、播放、字級與更多 */
+  /* 護眼模式：閱讀畫面只留下翻頁、播放、字級與更多 */
   .elder-controls{display:none;position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:58;
     width:min(760px,100%);grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;padding:7px max(7px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom,0)) max(7px,env(safe-area-inset-left));
     background:var(--bar);border:2px solid var(--bar-line);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -8px 28px rgba(0,0,0,.4)}
@@ -469,7 +469,7 @@
     <div class="brand"><span class="lamp"></span><span class="t">翻頁閱讀器</span></div>
     <button class="btn primary" id="openBtn"><span class="ico">📂</span><span class="t">開啟 PDF</span></button>
     <button class="btn" id="shelfBtn" title="我的書櫃"><span class="ico">📚</span><span class="t">書櫃</span></button>
-    <button class="btn" id="elderBtn" title="切換長輩模式" aria-pressed="false"><span class="ico">👓</span><span class="t">長輩模式</span></button>
+    <button class="btn" id="elderBtn" title="切換護眼模式" aria-pressed="false"><span class="ico">👓</span><span class="t">護眼模式</span></button>
     <button class="btn" id="tocBtn" title="目錄" disabled><span class="ico">☰</span><span class="t">目錄</span></button>
     <button class="btn" id="searchBtn" title="搜尋這本書 (/)" disabled><span class="ico">🔎</span><span class="t">搜尋</span></button>
     <button class="btn" id="bmBtn" title="書籤這一頁 (B)" disabled><span class="ico">🔖</span><span class="t">書籤</span></button>
@@ -526,7 +526,7 @@
     <button class="nav-arrow right" id="nextArrow" title="下一頁 (→)">›</button>
   </div>
 
-  <div class="elder-controls" id="elderControls" aria-label="長輩模式閱讀控制">
+  <div class="elder-controls" id="elderControls" aria-label="護眼模式閱讀控制">
     <button class="elder-control" id="elderPrev"><span class="em">←</span><span>上一頁</span></button>
     <button class="elder-control primary" id="elderPlay"><span class="em">▶</span><span class="elder-play-text">播放</span></button>
     <button class="elder-control" id="elderNext"><span class="em">→</span><span>下一頁</span></button>
@@ -538,7 +538,7 @@
   <div class="empty" id="empty">
     <div class="empty-inner">
       <div class="home-actions">
-        <button class="elder-toggle-home" id="elderHomeBtn" aria-pressed="false">👓 開啟長輩模式</button>
+        <button class="elder-toggle-home" id="elderHomeBtn" aria-pressed="false">👓 開啟護眼模式</button>
       </div>
       <div class="continue-card" id="continueCard">
         <div class="continue-label">繼續閱讀</div>
@@ -1896,8 +1896,8 @@ function syncElderUi(){
   document.body.classList.toggle('has-doc',loaded);
   document.body.classList.toggle('home-open',homeOpen);
   const main=$('elderBtn'),home=$('elderHomeBtn');
-  if(main){ main.classList.toggle('on',elderMode); main.setAttribute('aria-pressed',String(elderMode)); main.querySelector('.t').textContent=elderMode?'完整模式':'長輩模式'; }
-  if(home){ home.classList.toggle('on',elderMode); home.setAttribute('aria-pressed',String(elderMode)); home.textContent=elderMode?'✓ 長輩模式已開啟':'👓 開啟長輩模式'; }
+  if(main){ main.classList.toggle('on',elderMode); main.setAttribute('aria-pressed',String(elderMode)); main.querySelector('.t').textContent=elderMode?'完整模式':'護眼模式'; }
+  if(home){ home.classList.toggle('on',elderMode); home.setAttribute('aria-pressed',String(elderMode)); home.textContent=elderMode?'✓ 護眼模式已開啟':'👓 開啟護眼模式'; }
   const prev=$('elderPrev'),next=$('elderNext'),play=$('elderPlay');
   if(prev)prev.disabled=!loaded||curPage<=1;
   if(next)next.disabled=!loaded||curPage>=totalPages;
@@ -1922,7 +1922,7 @@ async function setElderMode(on,announce=true){
     }
   }
   syncElderUi(); syncControls();
-  if(announce)toast(elderMode?'已開啟長輩模式':'已回到完整模式');
+  if(announce)toast(elderMode?'已開啟護眼模式':'已回到完整模式');
 }
 $('elderBtn').onclick=()=>setElderMode(!elderMode);
 $('elderHomeBtn').onclick=()=>setElderMode(!elderMode);
@@ -4020,7 +4020,7 @@ async function runBatchOcr(){
 $('ocrBtn').onclick=()=>{ if(ocrBatchRunning){ toast('正在辨識中…'); return; } runBatchOcr(); };
 ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
 
-/* 長輩模式的大型閱讀控制與「更多」選單。技術設定仍保留在完整模式，這裡只顯示日常功能。 */
+/* 護眼模式的大型閱讀控制與「更多」選單。技術設定仍保留在完整模式，這裡只顯示日常功能。 */
 function closeElderMenu(){ $('mSheet').style.display='none'; $('mSheetBg').style.display='none'; }
 function openElderMenu(){
   const tile=(emoji,label,act,on=false)=>'<button class="m-tile'+(on?' on':'')+'" data-elder-act="'+act+'"><span class="em">'+emoji+'</span>'+label+'</button>';
@@ -4080,7 +4080,7 @@ syncElderUi();
     const canRead=docLoaded();
     const tile=(emoji,label,act,on,dis)=>`<button class="m-tile${on?' on':''}" data-act="${act}"${dis?' disabled':''}><span class="em">${emoji}</span>${label}</button>`;
     let g='<div class="m-sheet-sec">閱讀模式</div><div class="m-grid">';
-    g+=tile('👓','長輩模式','elder',elderMode);
+    g+=tile('👓','護眼模式','elder',elderMode);
     g+='</div><div class="m-sheet-sec">書籍</div><div class="m-grid">';
     g+=tile('📂','開啟檔案','open');
     g+=tile('📚','書櫃','shelf');
