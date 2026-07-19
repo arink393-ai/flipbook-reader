@@ -34,25 +34,6 @@
   button{font-family:inherit;touch-action:manipulation}
   select,input[type=range]{touch-action:manipulation}
 
-  /* 三種高對比閱讀主題 */
-  body.theme-day{--stage:#e7edf3;--bar:#fff;--bar-line:#263341;--ink:#101820;--ink-dim:#344454;--paper:#fff;--brass:#8a5700;--brass-hi:#674100;--sel:rgba(180,118,0,.32)}
-  body.theme-sepia{--stage:#cbb991;--bar:#3d3325;--bar-line:#8e7952;--ink:#fffaf0;--ink-dim:#ead9ba;--paper:#f6edd9;--brass:#ffd166;--brass-hi:#ffe29a;--sel:rgba(173,111,0,.32)}
-  body.theme-night{--stage:#151920;--bar:#0d1117;--bar-line:#52606f;--ink:#fff;--ink-dim:#c6d0da;--paper:#121820;--brass:#ffd166;--brass-hi:#ffe29a;--sel:rgba(255,209,102,.40)}
-  body.theme-day .stage{background:linear-gradient(#f4f7fa,#dbe3ea)}
-  body.theme-sepia .stage{background:linear-gradient(#d9c9a7,#bba77d)}
-  body.theme-night .stage{background:radial-gradient(1000px 520px at 50% -10%,#27303b 0%,transparent 70%),var(--stage)}
-  body.theme-day .textLayer.flowtext{color:#111820;background:#fff}
-  body.theme-sepia .textLayer.flowtext{color:#2b2115;background:#f6edd9}
-  body.theme-night .textLayer.flowtext{color:#f8fafc;background:#121820}
-  body.theme-day .textLayer.flowtext h1,body.theme-day .textLayer.flowtext h2,body.theme-day .textLayer.flowtext h3{color:#101820}
-  body.theme-sepia .textLayer.flowtext h1,body.theme-sepia .textLayer.flowtext h2,body.theme-sepia .textLayer.flowtext h3{color:#2b2115}
-  body.theme-night .textLayer.flowtext h1,body.theme-night .textLayer.flowtext h2,body.theme-night .textLayer.flowtext h3{color:#fff}
-  body.theme-day .drop,body.theme-day .bookcard,body.theme-day .m-sheet,body.theme-day .drawer,body.theme-day .modal,body.theme-day .tpop,body.theme-day .wordcard{background:#fff;color:#101820}
-  body.theme-day .btn:not(.primary),body.theme-day .m-tile,body.theme-day .dtab,body.theme-day .sel,body.theme-day .pagebox input,body.theme-day .m-row select{background:#eef2f5;color:#101820;border-color:#263341}
-  body.theme-day .tpop .res,body.theme-day .wordcard .wc-zh{color:#101820}
-  body.theme-sepia .drop,body.theme-sepia .bookcard,body.theme-sepia .m-sheet,body.theme-sepia .drawer,body.theme-sepia .modal,body.theme-sepia .tpop,body.theme-sepia .wordcard{background:#3d3325;color:#fffaf0}
-  body.theme-sepia .btn:not(.primary),body.theme-sepia .m-tile,body.theme-sepia .dtab,body.theme-sepia .pagebox input,body.theme-sepia .m-row select{background:#514431;color:#fffaf0}
-
   .topbar{height:54px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--bar);border-bottom:1px solid var(--bar-line);position:relative;z-index:30}
   .brand{font-weight:700;letter-spacing:.5px;font-size:15px;display:flex;align-items:center;gap:8px;margin-right:6px;white-space:nowrap}
   .brand .lamp{width:10px;height:10px;border-radius:50%;background:var(--brass);box-shadow:0 0 10px var(--brass)}
@@ -76,13 +57,6 @@
   .stage{position:absolute;inset:54px 0 56px 0;overflow:auto;
     background:radial-gradient(1200px 600px at 50% -10%,#2a2f38 0%,transparent 70%),var(--stage)}
   .scroller{padding:30px;min-width:100%;min-height:100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
-  .scroller.continuous-scroller{align-items:flex-start;padding:18px 12px 48px}
-  .book.continuous{width:100%;display:flex;flex-direction:column;align-items:center;gap:18px;perspective:none}
-  .continuous-slot{position:relative;flex:none;display:flex;align-items:flex-start;justify-content:center;max-width:100%;transition:min-height .15s ease}
-  .continuous-slot::before{content:"第 " attr(data-page) " 頁";position:absolute;top:18px;left:50%;transform:translateX(-50%);color:var(--ink-dim);font-size:12px;z-index:0}
-  .continuous-slot.loaded::before{display:none}
-  .book.continuous .leaf{flex:none;margin:0 auto}
-  .stage.continuous-stage .nav-arrow{display:none}
 
   /* book + pages */
   .book{position:relative;display:flex;gap:0;perspective:2600px}
@@ -119,21 +93,13 @@
   .slider{flex:1;display:flex;align-items:center}
   input[type=range]{width:100%;accent-color:var(--brass);cursor:pointer}
 
-  .empty{position:absolute;inset:54px 0 56px 0;display:flex;align-items:center;justify-content:center;padding:24px;z-index:10;background:var(--stage)}
-  body.home-open .stage{visibility:hidden;pointer-events:none}
+  .empty{position:absolute;inset:54px 0 56px 0;display:flex;align-items:center;justify-content:center;padding:24px;z-index:10}
   .drop{width:min(560px,92vw);border:2px dashed #3a4150;border-radius:18px;background:#1c212a;padding:40px 34px;text-align:center;transition:.18s}
   .drop.over{border-color:var(--brass);background:#23262e}
   .drop .big{font-size:46px;margin-bottom:6px}
   .drop h1{font-size:21px;margin:6px 0 8px;font-weight:700}
   .drop p{margin:6px 0;color:var(--ink-dim);font-size:14px;line-height:1.7;user-select:text}
   .drop .open{margin-top:18px}
-  .home-actions{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;width:100%}
-  .elder-toggle-home{min-height:54px;padding:0 22px;border:2px solid var(--brass);border-radius:14px;background:var(--bar);color:var(--ink);font-size:17px;font-weight:800;cursor:pointer}
-  .continue-card{display:none;width:min(720px,94vw);border:2px solid var(--brass);border-radius:18px;background:var(--bar);padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
-  .continue-label{font-size:13px;color:var(--brass-hi);font-weight:800;letter-spacing:1px;margin-bottom:8px}
-  .continue-title{font-size:22px;line-height:1.4;font-weight:800;color:var(--ink);margin-bottom:5px;word-break:break-word}
-  .continue-meta{font-size:14px;color:var(--ink-dim);margin-bottom:15px}
-  .continue-btn{width:100%;min-height:64px;border:0;border-radius:14px;background:var(--brass);color:#1a1300;font-size:21px;font-weight:900;cursor:pointer}
 
   /* ---------- 書櫃 Library ---------- */
   .empty{overflow:auto}
@@ -195,8 +161,6 @@
   .spin{width:34px;height:34px;border:3px solid #3a4150;border-top-color:var(--brass);border-radius:50%;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);background:#111419;border:1px solid #333a47;color:var(--ink);padding:10px 16px;border-radius:10px;font-size:13px;z-index:70;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-  /* 不用 display:none：讓 iOS 把它視為持續存在的原生媒體元素，鎖屏時交給系統音訊管線。 */
-  .sleep-audio{position:fixed;left:-2px;bottom:-2px;width:1px;height:1px;opacity:.01;pointer-events:none;z-index:-1}
 
   .sel{height:32px;background:#222732;border:1px solid var(--bar-line);color:var(--ink);border-radius:7px;font-size:12px;padding:0 6px;cursor:pointer;max-width:150px}
   .btn.playing{background:var(--brass);color:#1a1300;border-color:var(--brass);font-weight:600}
@@ -224,7 +188,6 @@
   .read-trans .rt-res{font-size:16px;color:#fff;line-height:1.6;user-select:text}
   .read-trans .rt-res.loading{color:var(--ink-dim);font-style:italic}
   .textLayer span.anno{cursor:pointer}
-  mark.anno-fragment{color:inherit;padding:0;border-radius:2px;cursor:pointer;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 
   /* ---------- flow 文件（docx / epub）排版 ---------- */
   .textLayer.flowtext{position:static;inset:auto;overflow:hidden;padding:52px 44px;box-sizing:border-box;
@@ -275,7 +238,7 @@
   .toc-empty{padding:20px 16px;color:var(--ink-dim);font-size:13px;line-height:1.8}
   .overlay{position:absolute;inset:54px 0 56px 0;background:rgba(0,0,0,.45);z-index:44;display:none}
 
-  /* drawer tabs: 目錄 / 書籤 / 劃記 / 搜尋 */
+  /* drawer tabs: 目錄 / 書籤 / 搜尋 */
   .drawer-tabs{display:flex;gap:4px;padding:10px 10px 0}
   .dtab{flex:1;background:#1c212a;border:1px solid var(--bar-line);color:var(--ink-dim);border-radius:8px 8px 0 0;padding:8px 4px;font-size:12.5px;cursor:pointer}
   .dtab.on{background:#222732;color:var(--brass-hi);border-bottom-color:#222732}
@@ -290,9 +253,6 @@
   .bm-row button.bm-link{flex:1;text-align:left;background:none;border:none;color:var(--ink);font-size:12.5px;cursor:pointer;line-height:1.5}
   .bm-row button.bm-link .pg{color:var(--brass-hi);font-weight:700;display:block;font-size:12px}
   .bm-row button.bm-del{background:none;border:1px solid var(--bar-line);color:var(--ink-dim);border-radius:6px;width:26px;height:26px;cursor:pointer;flex:0 0 auto}
-  .anno-snippet{display:block;color:var(--ink);margin-top:2px}
-  .anno-note{display:block;color:var(--ink-dim);font-size:11.5px;margin-top:4px}
-  .anno-summary{padding:10px 14px;color:var(--ink-dim);font-size:12px;border-bottom:1px solid var(--bar-line)}
 
   /* 書籤絲帶（頁面右上角） */
   .leaf.bookmarked::after{content:"🔖";position:absolute;top:-8px;right:16px;font-size:24px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.55));z-index:6;pointer-events:none}
@@ -312,7 +272,7 @@
   .kbd-table kbd{background:#1c212a;border:1px solid var(--bar-line);border-radius:5px;padding:2px 7px;font-size:12px;color:var(--brass-hi);display:inline-block}
 
   /* ============ 手機極簡閱讀介面（預設隱藏，只在手機顯示） ============ */
-  .m-topbar,.m-botbar,.m-playbar,.m-sheet,.m-sheet-bg,.m-markbar{display:none}
+  .m-topbar,.m-botbar,.m-playbar,.m-sheet,.m-sheet-bg{display:none}
   .m-topbar{position:absolute;top:0;left:0;right:0;height:48px;z-index:40;
     align-items:center;gap:10px;padding:0 8px;
     background:rgba(19,22,28,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--bar-line);
@@ -321,7 +281,6 @@
     font-size:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;
     touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .m-iconbtn:active{background:rgba(255,255,255,.08)}
-  .m-iconbtn.on{color:var(--brass-hi);background:rgba(214,161,74,.14)}
   .m-title{flex:1;text-align:center;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
   .m-botbar{position:absolute;bottom:0;left:0;right:0;height:54px;z-index:40;
     align-items:center;gap:10px;padding:0 10px;padding-bottom:env(safe-area-inset-bottom,0);
@@ -366,51 +325,12 @@
   .m-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid var(--bar-line)}
   .m-row label{font-size:13px;color:var(--ink);flex:0 0 auto}
   .m-row select{flex:1;max-width:62%;height:38px;background:#1c212a;border:1px solid var(--bar-line);color:var(--ink);border-radius:9px;padding:0 8px;font-size:13px}
-  .m-markbar{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:55;align-items:center;gap:9px;
-    max-width:calc(100vw - 24px);white-space:nowrap;padding:7px 8px 7px 12px;border-radius:999px;
-    color:#1a1300;background:rgba(245,222,90,.96);box-shadow:0 6px 20px rgba(0,0,0,.36);font-size:12px;font-weight:700}
-  .m-markbar button{border:0;border-radius:999px;padding:6px 9px;background:#1a1300;color:#fff;font-size:12px;font-weight:700;touch-action:manipulation}
-  .m-markbar button:disabled{opacity:.4}
-  body.mark-mode .m-markbar{display:flex}
-  body.mark-mode .textLayer,body.mark-mode .textLayer *{touch-action:none!important}
-  body.mark-mode .textLayer{cursor:crosshair}
-
-  /* 護眼模式：閱讀畫面只留下翻頁、播放、字級與更多 */
-  .elder-controls{display:none;position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:58;
-    width:min(760px,100%);grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;padding:7px max(7px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom,0)) max(7px,env(safe-area-inset-left));
-    background:var(--bar);border:2px solid var(--bar-line);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -8px 28px rgba(0,0,0,.4)}
-  .elder-control{min-width:0;height:66px;border:2px solid var(--bar-line);border-radius:13px;background:var(--bar);color:var(--ink);font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
-  .elder-control .em{font-size:25px;line-height:1}
-  .elder-control.primary{background:var(--brass);color:#1a1300;border-color:var(--brass)}
-  .elder-control:disabled{opacity:.38}
-  body.elder-mode .topbar,body.elder-mode .bottombar,body.elder-mode .m-topbar,body.elder-mode .m-botbar,body.elder-mode .m-playbar{display:none!important}
-  body.elder-mode .nav-arrow{display:none!important}
-  body.elder-mode.has-doc:not(.home-open) .elder-controls{display:grid}
-  body.elder-mode.has-doc:not(.home-open) .stage{inset:0 0 82px 0!important}
-  body.elder-mode:not(.has-doc) .empty,body.elder-mode.home-open .empty{inset:0!important}
-  body.elder-mode .drop{padding:30px 24px}
-  body.elder-mode .drop h1{font-size:27px}
-  body.elder-mode .drop p{font-size:18px}
-  body.elder-mode .drop .hint{display:none}
-  body.elder-mode .bookcard .bn{font-size:17px;min-height:2.8em}
-  body.elder-mode .bookcard .bm{font-size:14px}
-  body.elder-mode .shelf h2{font-size:23px}
-  body.elder-mode .m-sheet-title{font-size:21px;padding:10px 0 14px}
-  body.elder-mode .m-sheet{left:50%;right:auto;width:min(620px,100%);transform:translateX(-50%)}
-  body.elder-mode .m-tile{font-size:16px;min-height:92px;font-weight:800}
-  body.elder-mode .m-tile .em{font-size:30px}
-  body.elder-mode .m-grid{grid-template-columns:repeat(2,1fr);gap:12px}
-  body.elder-mode .m-sheet-sec{font-size:15px;color:var(--brass-hi);font-weight:800}
 
   @media (max-width:640px){
     body.m-ui .topbar,body.m-ui .bottombar{display:none}
     body.m-ui .m-topbar,body.m-ui .m-botbar{display:flex}
     body.m-ui .stage{inset:48px 0 54px 0}
     body.m-ui.m-immersive .stage{inset:0}
-    body.elder-mode .elder-controls{grid-template-columns:repeat(3,minmax(0,1fr));width:100%;border-radius:15px 15px 0 0}
-    body.elder-mode .elder-control{height:58px;font-size:12px;flex-direction:row;gap:5px}
-    body.elder-mode .elder-control .em{font-size:21px}
-    body.elder-mode.has-doc:not(.home-open) .stage{inset:0 0 137px 0!important}
   }
 
   @media (max-width:640px){
@@ -428,7 +348,6 @@
     .sel{max-width:46vw}
     .pagebox{white-space:nowrap}
     .scroller{padding:12px}
-    .scroller.continuous-scroller{padding:10px 8px 48px}
   }
 </style>
 </head>
@@ -437,11 +356,7 @@
   <div class="m-topbar" id="mTopbar">
     <button class="m-iconbtn" id="mMenuBtn" title="選單" aria-label="選單">☰</button>
     <div class="m-title" id="mTitle">翻頁閱讀器</div>
-    <button class="m-iconbtn" id="mBookmarkBtn" title="書籤目前頁面" aria-label="書籤目前頁面">🔖</button>
-  </div>
-
-  <div class="m-markbar" id="mMarkBar" role="status">
-    <span>🖍 拖過文字即可劃記</span><button id="mMarkUndo" type="button">↶ 撤銷</button><button id="mMarkDone" type="button">完成</button>
+    <button class="m-iconbtn" id="mSearchBtn" title="搜尋" aria-label="搜尋">🔎</button>
   </div>
 
   <div class="m-botbar" id="mBotbar">
@@ -478,7 +393,6 @@
     <div class="brand"><span class="lamp"></span><span class="t">翻頁閱讀器</span></div>
     <button class="btn primary" id="openBtn"><span class="ico">📂</span><span class="t">開啟 PDF</span></button>
     <button class="btn" id="shelfBtn" title="我的書櫃"><span class="ico">📚</span><span class="t">書櫃</span></button>
-    <button class="btn" id="elderBtn" title="切換護眼模式" aria-pressed="false"><span class="ico">👓</span><span class="t">護眼模式</span></button>
     <button class="btn" id="tocBtn" title="目錄" disabled><span class="ico">☰</span><span class="t">目錄</span></button>
     <button class="btn" id="searchBtn" title="搜尋這本書 (/)" disabled><span class="ico">🔎</span><span class="t">搜尋</span></button>
     <button class="btn" id="bmBtn" title="書籤這一頁 (B)" disabled><span class="ico">🔖</span><span class="t">書籤</span></button>
@@ -488,7 +402,6 @@
     <div class="seg" title="檢視方式">
       <button class="btn" id="viewSingle">單頁</button>
       <button class="btn on" id="viewSpread">雙頁</button>
-      <button class="btn" id="viewContinuous">向下捲動</button>
     </div>
     <div class="spacer"></div>
     <div class="filename" id="filename"></div>
@@ -515,12 +428,10 @@
     <div class="drawer-tabs" id="drawerTabs">
       <button class="dtab on" data-tab="toc">☰ 目錄</button>
       <button class="dtab" data-tab="bm">🔖 書籤</button>
-      <button class="dtab" data-tab="anno">🖍 劃記</button>
       <button class="dtab" data-tab="search">🔎 搜尋</button>
     </div>
     <div class="toc-scroll" id="tocList"></div>
     <div class="toc-scroll" id="bmList" style="display:none"></div>
-    <div class="toc-scroll" id="annoList" style="display:none"></div>
     <div class="search-panel" id="searchPanel" style="display:none">
       <input type="search" id="searchInput" placeholder="輸入關鍵字，例如 collocation…">
       <div class="search-status" id="searchStatus"></div>
@@ -535,26 +446,8 @@
     <button class="nav-arrow right" id="nextArrow" title="下一頁 (→)">›</button>
   </div>
 
-  <div class="elder-controls" id="elderControls" aria-label="護眼模式閱讀控制">
-    <button class="elder-control" id="elderPrev"><span class="em">←</span><span>上一頁</span></button>
-    <button class="elder-control primary" id="elderPlay"><span class="em">▶</span><span class="elder-play-text">播放</span></button>
-    <button class="elder-control" id="elderNext"><span class="em">→</span><span>下一頁</span></button>
-    <button class="elder-control" id="elderFontMinus"><span class="em">A−</span><span>小一點</span></button>
-    <button class="elder-control" id="elderFontPlus"><span class="em">A＋</span><span>大一點</span></button>
-    <button class="elder-control" id="elderMore"><span class="em">⋯</span><span>更多</span></button>
-  </div>
-
   <div class="empty" id="empty">
     <div class="empty-inner">
-      <div class="home-actions">
-        <button class="elder-toggle-home" id="elderHomeBtn" aria-pressed="false">👓 開啟護眼模式</button>
-      </div>
-      <div class="continue-card" id="continueCard">
-        <div class="continue-label">繼續閱讀</div>
-        <div class="continue-title" id="continueTitle"></div>
-        <div class="continue-meta" id="continueMeta"></div>
-        <button class="continue-btn" id="continueBtn">▶ 繼續閱讀</button>
-      </div>
       <div class="shelf" id="shelf">
         <h2><span class="lamp"></span>我的書庫 <span class="shelf-usage" id="shelfUsage"></span>
           <span class="shelf-actions">
@@ -575,7 +468,6 @@
   </div>
 
   <div class="loading" id="loading"><div class="spin"></div><div id="loadingText">載入中…</div></div>
-  <audio id="sleepAudio" class="sleep-audio" preload="auto" playsinline aria-hidden="true"></audio>
 
   <div class="read-trans" id="readTrans">
     <div class="rt-label">朗讀翻譯（繁體中文）</div>
@@ -588,16 +480,12 @@
     <button class="btn" id="stopBtn" title="停止朗讀">⏹</button>
     <select class="sel" id="sleepSel" title="睡眠定時：時間到自動停止朗讀">
       <option value="0">⏰ 定時：關閉</option>
-      <option value="5">5 分鐘後停止</option>
-      <option value="10">10 分鐘後停止</option>
       <option value="15">15 分鐘後停止</option>
-      <option value="20">20 分鐘後停止</option>
       <option value="30">30 分鐘後停止</option>
       <option value="45">45 分鐘後停止</option>
       <option value="60">60 分鐘後停止</option>
       <option value="chapter">讀完本章停止</option>
     </select>
-    <button class="btn" id="sleepBgBtn" title="建立一段連續音訊，鎖定螢幕後繼續播放">🌙 睡眠背景播放</button>
     <button class="btn" id="transToggle" title="朗讀時同步顯示繁中翻譯">譯</button>
     <select class="sel" id="trSourceBar" title="翻譯來源">
       <option value="free">譯源：免費</option>
@@ -605,10 +493,11 @@
       <option value="local">譯源：本機/代理</option>
     </select>
     <select class="sel" id="engineSel" title="語音來源">
-      <option value="gtranslate">免費線上語音</option>
-      <option value="builtin">裝置內建語音</option>
-      <option value="mobile">手機自然語音（推薦）</option>
-      <option value="eleven">高品質雲端語音</option>
+      <option value="gtranslate">Google 翻譯語音 (免費)</option>
+      <option value="local">本機語音伺服器 (Kokoro)</option>
+      <option value="builtin">內建語音</option>
+      <option value="google">Google 雲端</option>
+      <option value="eleven">ElevenLabs</option>
     </select>
     <select class="sel" id="rateSel" title="語速">
       <option value="0.8">0.8x</option><option value="1" selected>1x</option>
@@ -745,24 +634,6 @@ const IS_MOBILE = window.matchMedia('(max-width:640px)').matches || ('ontouchsta
 let mUiSync=null, mUiAudio=null;   // 手機介面更新 hook（供 syncControls / updateAudioUI 呼叫）
 let lastCloudError='';             // 記錄雲端語音最近一次的實際失敗原因，供錯誤提示顯示
 if(IS_MOBILE && lsGet('reader_view','')===''){ viewMode='single'; }   // phones default to single page
-let elderMode=lsGet('reader_elder_mode','0')==='1';
-let readerTheme=lsGet('reader_theme',elderMode?'sepia':'night');
-if(!['day','sepia','night'].includes(readerTheme)) readerTheme='night';
-function applyReaderTheme(theme,announce=false){
-  if(!['day','sepia','night'].includes(theme))return;
-  readerTheme=theme;
-  document.body.classList.remove('theme-day','theme-sepia','theme-night');
-  document.body.classList.add('theme-'+theme);
-  lsSet('reader_theme',theme);
-  document.querySelectorAll('[data-theme]').forEach(el=>el.classList.toggle('on',el.dataset.theme===theme));
-  if(announce)toast({day:'已切換為白天主題',sepia:'已切換為米黃主題',night:'已切換為夜間主題'}[theme]);
-}
-function friendlyEngineName(which){
-  return {gtranslate:'免費線上語音',local:'電腦自然語音',builtin:'裝置內建語音',mobile:'手機自然語音',eleven:'高品質雲端語音'}[which]||'自然語音';
-}
-document.body.classList.toggle('elder-mode',elderMode);
-applyReaderTheme(readerTheme,false);
-
 
 /* ---------- file ---------- */
 const openPicker=()=>$('fileInput').click();
@@ -806,7 +677,6 @@ async function loadFile(file,fromLib=false){
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     const saved=parseInt(lsGet(fileKey,'1'))||1;
     curPage=Math.min(Math.max(1,saved),totalPages);
-    if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); zoom=Math.max(zoom,1.15); fitMode='width'; lsSet('reader_zoom',String(zoom)); }
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook();
     if(myToken!==loadToken)return;
@@ -846,7 +716,6 @@ async function loadFlowFile(file,kind,fromLib=false){
     fileKey='pg_'+file.name+'_'+file.size;
     loadAnno(); loadBookmarks(); resetSearchIndex();
     detectedFlowShape=detectFlowShape(blocks);
-    if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); if(flowFontScale<1.35)setFlowFontScale(1.35); }
     showLoading('正在為「'+file.name+'」分頁…');
     const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
     if(cancelled||myToken!==loadToken)return;
@@ -1021,9 +890,8 @@ function detectFlowShape(blocks){
   return (avg>1.2 && wideCount/ratios.length>0.55) ? 'landscape' : 'portrait';
 }
 function effectiveFlowShape(){ return flowPageShape==='auto' ? detectedFlowShape : flowPageShape; }
-function pageSideGap(){ return (IS_MOBILE&&viewMode==='continuous') ? 16 : 90; }
 function flowPageSize(){
-  const availW=stage.clientWidth-pageSideGap(), availH=stage.clientHeight-60;
+  const availW=stage.clientWidth-90, availH=stage.clientHeight-60;
   const across=(viewMode==='spread')?2:1;
   const maxW=availW/across;
   if(effectiveFlowShape()==='landscape'){
@@ -1034,7 +902,7 @@ function flowPageSize(){
     h=Math.max(260,Math.min(availH,w/targetRatio));
     return {w:Math.floor(w), h:Math.floor(h)};
   }
-  const w=Math.max(280,Math.min((IS_MOBILE&&viewMode==='continuous')?960:680, maxW));
+  const w=Math.max(280,Math.min(680, maxW));
   const h=Math.max(320, availH);
   return {w:Math.floor(w), h:Math.floor(h)};
 }
@@ -1247,16 +1115,11 @@ async function openFromLibrary(id){
 function escHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtMB(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';}
 async function renderShelf(){
-  const shelf=$('shelf'),grid=$('shelfGrid'),dropZone=$('drop'),continueCard=$('continueCard');
+  const shelf=$('shelf'),grid=$('shelfGrid'),dropZone=$('drop');
   let books=[]; try{books=await libAll()||[];}catch(e){}
-  if(!books.length){shelf.style.display='none';dropZone.style.display='';continueCard.style.display='none';syncElderUi();return;}
+  if(!books.length){shelf.style.display='none';dropZone.style.display='';return;}
   dropZone.style.display='none';
   books.sort((a,b)=>(b.lastOpened||0)-(a.lastOpened||0));
-  const recent=books[0],recentPage=parseInt(lsGet(recent.id,'1'))||1;
-  $('continueTitle').textContent=(recent.name||'上次閱讀的書').replace(/\.(pdf|docx|epub)$/i,'');
-  $('continueMeta').textContent='從第 '+recentPage+' 頁繼續'+(recent.pages?' · 共 '+recent.pages+' 頁':'');
-  $('continueBtn').onclick=()=>openFromLibrary(recent.id);
-  continueCard.style.display='block';
   shelf.style.display='block'; grid.innerHTML='';
   for(const b of books){
     const last=parseInt(lsGet(b.id,'1'))||1;
@@ -1294,7 +1157,6 @@ $('shelfBtn').onclick=()=>{
   const showing=empty.style.display!=='none';
   if(showing&&docLoaded()){empty.style.display='none';}
   else{empty.style.display='flex';renderShelf();updateUsage();}
-  syncElderUi();
 };
 $('autoSaveChk').checked=lsGet('reader_autosave','1')==='1';
 $('autoSaveChk').onchange=e=>lsSet('reader_autosave',e.target.checked?'1':'0');
@@ -1303,7 +1165,7 @@ renderShelf(); updateUsage();
 /* ---------- scale ---------- */
 function fitScaleFor(page){
   const v1=page.getViewport({scale:1});
-  const availW=stage.clientWidth-pageSideGap(), availH=stage.clientHeight-60;
+  const availW=stage.clientWidth-90, availH=stage.clientHeight-60;
   const across=(viewMode==='spread'&&totalPages>1)?2:1;
   if(fitMode==='page') return Math.min((availW/across)/v1.width,availH/v1.height);
   return (availW/across)/v1.width;       // fit width (default)
@@ -1338,7 +1200,7 @@ async function renderLeaf(idx,cls){
   }
   applyAnnotations(leaf);
   // also cache the image for flip faces
-  if(viewMode!=='continuous'){try{imgCache.set(idx,{url:cv.toDataURL('image/jpeg',0.85),w:curW,h:curH});}catch(e){}}
+  try{imgCache.set(idx,{url:cv.toDataURL('image/jpeg',0.85),w:curW,h:curH});}catch(e){}
   return leaf;
 }
 
@@ -1377,84 +1239,10 @@ function renderFlowLeaf(idx,cls){
 
 /* resting render of current spread/page (selectable) */
 let paintToken=0;
-let continuousObserver=null,continuousRenderer=null,continuousScrollRAF=0,continuousJumping=false;
-const continuousJobs=new Map();
-function continuousLeafSize(leaf){
-  const el=leaf&&leaf.querySelector('canvas.page,.textLayer');
-  const w=parseFloat(el&&el.style.width)||curW||Math.max(280,stage.clientWidth-40);
-  const h=parseFloat(el&&el.style.height)||curH||Math.round(w*1.414);
-  return {w,h};
-}
-function leaveContinuousLayout(){
-  if(continuousObserver){continuousObserver.disconnect();continuousObserver=null;}
-  continuousRenderer=null;continuousJobs.clear();
-  stage.classList.remove('continuous-stage');$('scroller').classList.remove('continuous-scroller');
-}
-function trimContinuousPages(center){
-  if(viewMode!=='continuous')return;
-  const keep=new Set();for(let p=Math.max(1,center-4);p<=Math.min(totalPages,center+4);p++)keep.add(p);
-  if(reading){for(let p=Math.max(1,readPage-1);p<=Math.min(totalPages,readPage+1);p++)keep.add(p);}
-  book.querySelectorAll('.continuous-slot.loaded').forEach(slot=>{
-    const p=+slot.dataset.page;if(keep.has(p))return;
-    slot.innerHTML='';slot.classList.remove('loaded');
-  });
-}
-async function ensureContinuousLeaf(idx){
-  if(viewMode!=='continuous'||idx<1||idx>totalPages)return null;
-  const slot=book.querySelector('.continuous-slot[data-page="'+idx+'"]');
-  if(!slot)return null;
-  const ready=slot.querySelector('.leaf');if(ready)return ready;
-  if(continuousJobs.has(idx))return continuousJobs.get(idx);
-  const render=continuousRenderer||(docType==='flow'?(i,c)=>renderFlowLeaf(i,c):(i,c)=>renderLeaf(i,c));
-  const job=(async()=>{
-    const leaf=await render(idx,'single');
-    if(viewMode!=='continuous'||!slot.isConnected)return leaf;
-    const size=continuousLeafSize(leaf);
-    slot.style.width=size.w+'px';slot.style.minHeight=size.h+'px';slot.style.height=size.h+'px';
-    slot.innerHTML='';slot.appendChild(leaf);slot.classList.add('loaded');
-    leaf.classList.toggle('bookmarked',bookmarks.has(idx));
-    return leaf;
-  })().finally(()=>continuousJobs.delete(idx));
-  continuousJobs.set(idx,job);return job;
-}
-async function scrollContinuousToPage(idx,behavior='smooth'){
-  if(viewMode!=='continuous')return;
-  idx=Math.max(1,Math.min(totalPages,idx));await ensureContinuousLeaf(idx);
-  const slot=book.querySelector('.continuous-slot[data-page="'+idx+'"]');if(!slot)return;
-  continuousJumping=true;
-  const sr=stage.getBoundingClientRect(),r=slot.getBoundingClientRect();
-  stage.scrollTo({top:Math.max(0,stage.scrollTop+r.top-sr.top-16),behavior});
-  setTimeout(()=>{continuousJumping=false;},behavior==='smooth'?500:80);
-}
-async function paintContinuous(myPaint,render){
-  if(continuousObserver)continuousObserver.disconnect();continuousJobs.clear();continuousRenderer=render;
-  const anchor=await render(curPage,'single');
-  if(myPaint!==paintToken||viewMode!=='continuous')return;
-  const size=continuousLeafSize(anchor);
-  stage.classList.add('continuous-stage');$('scroller').classList.add('continuous-scroller');
-  book.className='book continuous';book.innerHTML='';
-  for(let p=1;p<=totalPages;p++){
-    const slot=document.createElement('div');slot.className='continuous-slot';slot.dataset.page=p;
-    slot.style.width=size.w+'px';slot.style.minHeight=size.h+'px';slot.style.height=size.h+'px';
-    if(p===curPage){slot.appendChild(anchor);slot.classList.add('loaded');}
-    book.appendChild(slot);
-  }
-  if('IntersectionObserver' in window){
-    continuousObserver=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)ensureContinuousLeaf(+e.target.dataset.page);});},{root:stage,rootMargin:'1200px 0px'});
-    book.querySelectorAll('.continuous-slot').forEach(s=>continuousObserver.observe(s));
-  }else{
-    for(let p=Math.max(1,curPage-2);p<=Math.min(totalPages,curPage+2);p++)ensureContinuousLeaf(p);
-  }
-  ensureContinuousLeaf(curPage-1);ensureContinuousLeaf(curPage+1);
-  syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));
-  requestAnimationFrame(()=>scrollContinuousToPage(curPage,'auto'));
-}
 async function paintBook(){
   if(!docLoaded())return;
   const myPaint=++paintToken;                     // 快速連續翻頁時，只讓「最新」的一次重繪上畫面，舊的直接放棄
   const render=docType==='flow' ? (i,c)=>renderFlowLeaf(i,c) : (i,c)=>renderLeaf(i,c);
-  if(viewMode==='continuous')return paintContinuous(myPaint,render);
-  leaveContinuousLayout();
   // 雙緩衝：先在畫面外把新頁面完整渲染好，這段期間舊頁面保持顯示——避免「先清空再慢慢畫」造成翻頁瞬間整頁空白閃爍
   const leaves=[];
   if(viewMode==='spread'&&totalPages>1){
@@ -1472,20 +1260,6 @@ async function paintBook(){
   updateChapterTime();
   if(fileKey)lsSet(fileKey,String(curPage));
 }
-
-stage.addEventListener('scroll',()=>{
-  if(viewMode!=='continuous'||continuousJumping||continuousScrollRAF)return;
-  continuousScrollRAF=requestAnimationFrame(()=>{
-    continuousScrollRAF=0;
-    const sr=stage.getBoundingClientRect();
-    const hit=document.elementFromPoint(sr.left+sr.width/2,sr.top+Math.min(sr.height*0.32,220));
-    const slot=hit&&hit.closest&&hit.closest('.continuous-slot');
-    const p=slot?+slot.dataset.page:0;
-    if(p&&p!==curPage){curPage=p;syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));}
-    if(p)trimContinuousPages(p);
-    if(p){ensureContinuousLeaf(p-1);ensureContinuousLeaf(p+1);}
-  });
-},{passive:true});
 
 /* ---------- 書籤（跟螢光筆標記分開，單純插旗某一頁）---------- */
 function loadBookmarks(){ try{ bookmarks=new Set(JSON.parse(lsGet('bm_'+fileKey,'[]'))); }catch(e){ bookmarks=new Set(); } }
@@ -1641,7 +1415,53 @@ $('rateSel').addEventListener('change',()=>updateChapterTime());
 
 /* ---------- 朗讀睡眠計時器 ---------- */
 let sleepTimerId=null, sleepMode='off', sleepChapterEnd=0;
-let backgroundSleep=false,backgroundSleepUrl=null;
+/* ---- 螢幕保持喚醒（Wake Lock）----
+   iOS 螢幕一熄屏，網頁 JavaScript 就會暫停，內建語音也會中斷。
+   朗讀期間請求 Wake Lock 讓螢幕不自動熄屏（可把亮度調到最低）；
+   睡眠定時器到時會一併解除，螢幕就能正常入睡——這樣定時器才有意義。 */
+let wakeLock=null, wakeLockWanted=false;
+async function requestWakeLock(){
+  wakeLockWanted=true;
+  try{
+    if('wakeLock' in navigator && navigator.wakeLock.request){
+      wakeLock=await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener&&wakeLock.addEventListener('release',()=>{ /* 被系統釋放（例如切到背景）時，回前景會重新取得 */ });
+      if(!lsGet('reader_wakelock_hint')){ lsSet('reader_wakelock_hint','1'); toast('🔆 朗讀時螢幕會保持亮著（可把亮度調到最低）；設定睡眠定時後，時間到會自動停止並讓螢幕休眠'); }
+    }
+  }catch(e){ /* 使用者可能拒絕、或瀏覽器不支援；靜默即可 */ }
+}
+async function releaseWakeLock(){
+  wakeLockWanted=false;
+  try{ if(wakeLock){ await wakeLock.release(); } }catch(e){}
+  wakeLock=null;
+}
+/* MediaSession：朗讀時在鎖屏／控制中心顯示書名與播放控制，
+   也讓（音檔類）雲端語音更容易被系統當成「正在播放的媒體」而允許背景播放 */
+function setupMediaSession(){
+  try{
+    if(!('mediaSession' in navigator))return;
+    navigator.mediaSession.metadata=new MediaMetadata({
+      title:($('filename').textContent||'翻頁閱讀器'),
+      artist:'翻頁閱讀器',
+      album:'朗讀中'
+    });
+    navigator.mediaSession.setActionHandler('play',()=>{ if(!reading){ startReading(); } else if(paused){ startReading(); } });
+    navigator.mediaSession.setActionHandler('pause',()=>{ if(reading&&!paused){ startReading(); } });   // startReading 本身會切換暫停
+    navigator.mediaSession.setActionHandler('stop',()=>stopReading());
+    try{
+      navigator.mediaSession.setActionHandler('previoustrack',()=>{ if(curPage>1)turnTo(-1); });
+      navigator.mediaSession.setActionHandler('nexttrack',()=>{ turnTo(1); });
+    }catch(e){}
+    navigator.mediaSession.playbackState='playing';
+  }catch(e){}
+}
+function clearMediaSession(){
+  try{ if('mediaSession' in navigator){ navigator.mediaSession.playbackState='none'; navigator.mediaSession.metadata=null; } }catch(e){}
+}
+// Wake Lock 會在切到背景時自動失效，切回前景要重新取得（若還在朗讀）
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && wakeLockWanted && reading){ requestWakeLock(); }
+});
 function clearSleepTimer(){ if(sleepTimerId){clearTimeout(sleepTimerId);sleepTimerId=null;} }
 $('sleepSel').onchange=()=>{
   const v=$('sleepSel').value;
@@ -1651,7 +1471,7 @@ $('sleepSel').onchange=()=>{
   sleepMode='timer';
   const mins=parseInt(v)||30;
   sleepTimerId=setTimeout(()=>{ stopReading(); sleepMode='off'; if($('sleepSel'))$('sleepSel').value='0'; toast('⏰ 睡眠計時已到，已停止朗讀'); },mins*60000);
-  toast(mins+' 分鐘後會自動停止朗讀');
+  toast(mins+' 分鐘後自動停止朗讀，並讓螢幕恢復自動休眠');
 };
 async function pageImage(idx){
   if(idx<1||idx>totalPages) return {blank:true,w:curW,h:curH};
@@ -1713,11 +1533,6 @@ async function animateTurn(el,shade,from,to){
 async function turnTo(dir){
   if(animating||!docLoaded())return;
   if(reading)stopReading();
-  if(viewMode==='continuous'){
-    const target=Math.max(1,Math.min(totalPages,curPage+(dir>0?1:-1)));
-    if(target!==curPage){curPage=target;syncControls();await scrollContinuousToPage(target);}
-    return;
-  }
   const fwd=dir>0;
   const spread=(viewMode==='spread'&&totalPages>1);
   let target=curPage+(spread?(fwd?2:-2):(fwd?1:-1));
@@ -1811,8 +1626,6 @@ function syncControls(){
   $('nextArrow').disabled=curPage+step()>totalPages&&curPage>=totalPages;
   $('viewSingle').classList.toggle('on',viewMode==='single');
   $('viewSpread').classList.toggle('on',viewMode==='spread');
-  $('viewContinuous').classList.toggle('on',viewMode==='continuous');
-  syncElderUi();
   if(typeof mUiSync==='function'){ try{ mUiSync(); }catch(e){} }
 }
 $('prevArrow').onclick=()=>turnTo(-1);
@@ -1851,7 +1664,6 @@ $('nextArrow').onclick=()=>turnTo(1);
       return;
     }
     if(e.touches.length===0 && !moved && Date.now()-st<500){   // a clean tap
-      if(viewMode==='continuous')return;
       if(e.target.closest&&e.target.closest('.textLayer span'))return;  // tapping text = read/translate
       if(e.target.closest&&e.target.closest('.nav-arrow'))return;
       const w=window.innerWidth;
@@ -1896,55 +1708,13 @@ stage.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault(); 
 function setView(mode){if(reading)stopReading();viewMode=mode;lsSet('reader_view',mode);if(mode==='spread'&&curPage%2===0&&curPage>1)curPage--;imgCache.clear();if(docType==='flow'&&flowRawBlocks.length)repaginateFlow();else if(pdfDoc)paintBook();else syncControls();}
 $('viewSingle').onclick=()=>setView('single');
 $('viewSpread').onclick=()=>setView('spread');
-$('viewContinuous').onclick=()=>setView('continuous');
-
-function syncElderUi(){
-  const loaded=docLoaded();
-  const homeOpen=empty.style.display!=='none';
-  document.body.classList.toggle('elder-mode',elderMode);
-  document.body.classList.toggle('has-doc',loaded);
-  document.body.classList.toggle('home-open',homeOpen);
-  const main=$('elderBtn'),home=$('elderHomeBtn');
-  if(main){ main.classList.toggle('on',elderMode); main.setAttribute('aria-pressed',String(elderMode)); main.querySelector('.t').textContent=elderMode?'完整模式':'護眼模式'; }
-  if(home){ home.classList.toggle('on',elderMode); home.setAttribute('aria-pressed',String(elderMode)); home.textContent=elderMode?'✓ 護眼模式已開啟':'👓 開啟護眼模式'; }
-  const prev=$('elderPrev'),next=$('elderNext'),play=$('elderPlay');
-  if(prev)prev.disabled=!loaded||curPage<=1;
-  if(next)next.disabled=!loaded||curPage>=totalPages;
-  if(play){
-    play.disabled=!loaded;
-    play.querySelector('.em').textContent=(reading&&!paused)?'⏸':'▶';
-    play.querySelector('.elder-play-text').textContent=(reading&&!paused)?'暫停':'播放';
-  }
-}
-async function setElderMode(on,announce=true){
-  elderMode=!!on;
-  lsSet('reader_elder_mode',elderMode?'1':'0');
-  document.body.classList.remove('m-immersive');
-  if(elderMode){
-    viewMode='continuous'; lsSet('reader_view','continuous');
-    if(docLoaded()&&docType==='flow'){
-      if(flowFontScale<1.35)setFlowFontScale(1.35);
-      await repaginateFlow();
-    }else if(docLoaded()){
-      zoom=Math.max(zoom,1.15); fitMode='width'; lsSet('reader_zoom',String(zoom)); imgCache.clear();
-      await paintBook();
-    }
-  }
-  syncElderUi(); syncControls();
-  if(announce)toast(elderMode?'已開啟護眼模式':'已回到完整模式');
-}
-$('elderBtn').onclick=()=>setElderMode(!elderMode);
-$('elderHomeBtn').onclick=()=>setElderMode(!elderMode);
 
 $('fsBtn').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();};
 
 /* ---------- audiobook (multi-engine TTS + sentence highlight) ---------- */
 const synth=window.speechSynthesis;
 const playBtn=$('playBtn'),stopBtn=$('stopBtn'),voiceSel=$('voiceSel'),rateSel=$('rateSel'),engineSel=$('engineSel');
-let engine=lsGet('tts_engine','builtin');
-if(engine==='google')engine='mobile';
-if(engine==='local'){engine='builtin';lsSet('tts_engine',engine);}
-const MOBILE_TTS_WORKER_DEFAULT='https://reader-mobile-tts.reader-tts-f0b859.workers.dev';
+let engine=lsGet('tts_engine','gtranslate');
 let rate=parseFloat(lsGet('reader_rate','1'))||1;
 let voices=[],builtinVoice=null,elevenVoices=[];
 function pickZhVoice(){
@@ -1991,10 +1761,10 @@ function populateVoiceSel(){
   voiceSel.innerHTML='';
   let list=[];
   if(engine==='builtin') list=voices.map(v=>({id:v.voiceURI,label:v.name+' ('+v.lang+')'}));
-  else if(engine==='gtranslate') list=[{id:'auto',label:'自動選擇中英文語音'}];
-  else if(engine==='local') list=[{id:'auto',label:'自動選擇中英文語音'}];
-  else if(engine==='mobile') list=[{id:'auto',label:'自動選擇中英文語音'}];
-  else if(engine==='eleven') list=elevenVoices.length?elevenVoices:[{id:'',label:'（請先完成進階設定）'}];
+  else if(engine==='gtranslate') list=[{id:'auto',label:'自動：英文／中文'}];
+  else if(engine==='local') list=[{id:'auto',label:'自動：英文／中文（依 ⚙ 設定）'}];
+  else if(engine==='google') list=[{id:'auto',label:'自動：英文／中文（依下方 ⚙ 設定）'}];
+  else if(engine==='eleven') list=elevenVoices.length?elevenVoices:[{id:'',label:'（請在 ⚙ 設定載入語音）'}];
   if(!list.length) list=[{id:'',label:'（無可用語音）'}];
   list.forEach(v=>{const o=document.createElement('option');o.value=v.id;o.textContent=v.label;voiceSel.appendChild(o);});
   let saved=lsGet('tts_voice_'+engine,'');
@@ -2005,7 +1775,7 @@ function populateVoiceSel(){
   if(engine==='builtin') builtinVoice=voices.find(v=>v.voiceURI===voiceSel.value)||null;
 }
 voiceSel.onchange=()=>{ lsSet('tts_voice_'+engine,voiceSel.value); if(engine==='builtin')builtinVoice=voices.find(v=>v.voiceURI===voiceSel.value)||null; audioCache.clear(); };
-engineSel.onchange=()=>{ stopReading(); engine=engineSel.value; lsSet('tts_engine',engine); audioCache.clear(); populateVoiceSel(); if(engine==='mobile'||(engine!=='builtin'&&!keyFor(engine)))openTtsSettings(); };
+engineSel.onchange=()=>{ stopReading(); engine=engineSel.value; lsSet('tts_engine',engine); audioCache.clear(); populateVoiceSel(); if(engine!=='builtin'&&!keyFor(engine)) openTtsSettings(); };
 populateVoiceSel();
 
 /* ---- cloud synthesis ---- */
@@ -2023,30 +1793,6 @@ async function googleTTS(text){
     throw new Error(lastCloudError);
   }
   const j=await r.json(); return 'data:audio/mp3;base64,'+j.audioContent;
-}
-async function mobileTTS(text){
-  const base=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim().replace(/\/$/,'');
-  if(!/^https:\/\//i.test(base))throw new Error('請先設定 HTTPS Worker 網址');
-  const zh=hasCJK(text);
-  const voice=zh?lsGet('tts_mobile_zh','cmn-TW-Wavenet-A'):lsGet('tts_mobile_en','en-US-Neural2-F');
-  const r=await fetch(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate})});
-  if(!r.ok){
-    let msg='HTTP '+r.status;try{const j=await r.json();if(j&&j.error)msg=j.error;}catch(e){}
-    lastCloudError='手機自然語音失敗：'+msg;throw new Error(lastCloudError);
-  }
-  return URL.createObjectURL(await r.blob());
-}
-async function mobileTTSPrepare(text){
-  const base=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim().replace(/\/$/,'');
-  if(!/^https:\/\//i.test(base))throw new Error('請先設定手機自然語音的 HTTPS Worker 網址');
-  const zh=hasCJK(text);
-  const voice=zh?lsGet('tts_mobile_zh','cmn-TW-Wavenet-A'):lsGet('tts_mobile_en','en-US-Neural2-F');
-  const r=await fetch(base+'/tts-prepare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate})});
-  let j=null;try{j=await r.json();}catch(e){}
-  if(!r.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
-  const audioUrl=String(j&&j.audioUrl||'');
-  if(!/^https:\/\//i.test(audioUrl))throw new Error('語音服務沒有回傳有效的音訊網址');
-  return audioUrl;
 }
 async function elevenTTS(text){
   const key=keyFor('eleven'); if(!key)throw new Error('缺少 ElevenLabs API 金鑰');
@@ -2072,8 +1818,7 @@ async function localTTS(text){
 }
 async function getAudio(text){
   if(audioCache.has(text))return audioCache.get(text);
-  const url = engine==='mobile'?await mobileTTS(text)
-            : engine==='google'?await googleTTS(text)
+  const url = engine==='google'?await googleTTS(text)
             : engine==='eleven'?await elevenTTS(text)
             : await localTTS(text);
   audioCache.set(text,url); return url;
@@ -2404,66 +2149,9 @@ function ensureVisible(el){
 function updateAudioUI(){
   playBtn.classList.toggle('playing',reading&&!paused);
   playBtn.querySelector('.ico').textContent=(reading&&!paused)?'⏸':'▶';
-  syncElderUi();
   if(typeof mUiAudio==='function'){ try{ mUiAudio(); }catch(e){} }
 }
-async function collectReadSentences(leaves,showOcr=true){
-  const out=[];
-  if(docType==='flow'){
-    leaves.forEach(leaf=>{
-      leaf.querySelectorAll('.textLayer.flowtext span').forEach(sp=>{
-        const t=(sp.textContent||'').trim();if(!t)return;
-        out.push({text:t,spans:[sp],startSpan:sp,parts:[{span:sp,so:0,eo:(sp.textContent||'').length}]});
-      });
-    });
-    return out;
-  }
-  for(const leaf of leaves){
-    const idx=+leaf.dataset.page,tl=leaf.querySelector('.textLayer');if(!tl)continue;
-    if(!tl.querySelector('span')&&idx>=1&&idx<=totalPages){
-      try{
-        if(showOcr)showLoading('這頁是掃描圖片，正在辨識文字（OCR）…');
-        const rec=await ocrPage(idx);if(rec&&rec.words&&rec.words.length)injectOcrSpans(tl,rec);
-      }catch(e){console.error('OCR failed',e);}
-      finally{if(showOcr)hideLoading();}
-    }
-    const spans=[...tl.querySelectorAll('span')];if(spans.length)out.push(...buildSentences(spans,tl));
-  }
-  return out;
-}
-let readAhead=null;
-async function prepareReadAhead(page,tk){
-  if(page<1||page>totalPages||!reading||tk!==readToken)return null;
-  let leaves=[];
-  if(viewMode==='continuous'){
-    const leaf=await ensureContinuousLeaf(page);if(leaf)leaves=[leaf];
-  }else{
-    const render=docType==='flow'?(i,c)=>renderFlowLeaf(i,c):(i,c)=>renderLeaf(i,c);
-    const count=(viewMode==='spread'&&totalPages>1)?2:1;
-    for(let n=0;n<count&&page+n<=totalPages;n++)leaves.push(await render(page+n,n===0&&count===2?'left':(count===2?'right':'single')));
-  }
-  if(!reading||tk!==readToken)return null;
-  let measure=null,preparedSentences=[];
-  try{
-    if(viewMode!=='continuous'){
-      measure=document.createElement('div');measure.className='book'+(viewMode==='spread'?' spread':'');
-      measure.style.cssText='position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;z-index:-1';
-      leaves.forEach(l=>measure.appendChild(l));document.body.appendChild(measure);
-    }
-    preparedSentences=await collectReadSentences(leaves,false);
-  }finally{if(measure)measure.remove();}
-  if(!reading||tk!==readToken)return null;
-  if(engine!=='builtin'&&engine!=='gtranslate'){
-    await Promise.all(preparedSentences.slice(0,2).map(s=>getAudio(s.text).catch(()=>null)));
-  }
-  return {page,mode:viewMode,leaves,sentences:preparedSentences};
-}
-function beginReadAhead(tk){
-  const page=readPage+step();
-  if(page>totalPages||(readAhead&&readAhead.page===page&&readAhead.mode===viewMode))return;
-  readAhead={page,mode:viewMode,promise:prepareReadAhead(page,tk)};
-}
-async function loadPage(tk=readToken){
+async function loadPage(){
   if(viewMode==='spread'&&totalPages>1&&readPage%2===0&&readPage>1)readPage--;
   if(sleepMode==='chapter' && readPage>sleepChapterEnd){
     stopReading(); toast('📖 已讀完本章，自動停止朗讀（睡眠定時）');
@@ -2471,29 +2159,36 @@ async function loadPage(tk=readToken){
     return;
   }
   if(readPage>totalPages){stopReading();toast('整本已朗讀完畢');sentences=[];return;}
-  let prepared=null;
-  if(readAhead&&readAhead.page===readPage&&readAhead.mode===viewMode){
-    const ahead=readAhead;readAhead=null;
-    try{prepared=await ahead.promise;}catch(e){prepared=null;}
-    if(!reading||tk!==readToken)return;
+  if(curPage!==readPage){curPage=readPage;await paintBook();stage.scrollTop=0;stage.scrollLeft=0;}
+  sentences=[];
+  if(docType==='flow'){
+    [...book.querySelectorAll('.textLayer.flowtext')].forEach(tl=>{
+      [...tl.querySelectorAll('span')].forEach(sp=>{
+        const t=(sp.textContent||'').trim(); if(!t)return;
+        sentences.push({text:t, spans:[sp], startSpan:sp, parts:[{span:sp,so:0,eo:(sp.textContent||'').length}]});
+      });
+    });
+    if(sentences.length===0){ readPage+=step(); return loadPage(); }
+    return;
   }
-  if(curPage!==readPage){
-    curPage=readPage;
-    if(viewMode==='continuous')await scrollContinuousToPage(readPage,'smooth');
-    else if(prepared&&prepared.leaves.length){
-      paintToken++;book.className='book'+(viewMode==='spread'?' spread':'');book.innerHTML='';prepared.leaves.forEach(l=>book.appendChild(l));
-      syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));stage.scrollTop=0;stage.scrollLeft=0;
-    }else{await paintBook();stage.scrollTop=0;stage.scrollLeft=0;}
+  // ---- PDF：先看原生文字層，沒有的話（掃描頁）就地做一次 OCR 再重試 ----
+  const leaves=[...book.querySelectorAll('.leaf[data-page]')];
+  for(const leaf of leaves){
+    const idx=+leaf.dataset.page; const tl=leaf.querySelector('.textLayer'); if(!tl)continue;
+    if(!tl.querySelector('span') && idx>=1 && idx<=totalPages){
+      try{
+        showLoading('這頁是掃描圖片，正在辨識文字（OCR）…');
+        const rec=await ocrPage(idx);
+        if(rec && rec.words && rec.words.length) injectOcrSpans(tl,rec);
+      }catch(e){ console.error('OCR failed',e); }
+      finally{ hideLoading(); }
+    }
   }
-  let leaves;
-  if(prepared&&prepared.sentences.length)sentences=prepared.sentences;
-  else if(viewMode==='continuous'){
-    const leaf=await ensureContinuousLeaf(readPage);leaves=leaf?[leaf]:[];
-    sentences=await collectReadSentences(leaves,true);
-  }else{
-    leaves=[...book.querySelectorAll('.leaf[data-page]')];sentences=await collectReadSentences(leaves,true);
-  }
-  if(sentences.length===0){ readPage+=step(); return loadPage(tk); }
+  [...book.querySelectorAll('.textLayer')].forEach(tl=>{
+    const spans=[...tl.querySelectorAll('span')];
+    if(spans.length) sentences.push(...buildSentences(spans, tl));
+  });
+  if(sentences.length===0){ readPage+=step(); return loadPage(); }
 }
 function needsKey(e){return e==='google'||e==='eleven';}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
@@ -2507,21 +2202,21 @@ async function startReading(){
   if(reading&&paused){ paused=false; if(engine==='builtin')synth.resume(); else if(curAudio)curAudio.play().catch(()=>{}); updateAudioUI(); return; }
   if(engine==='builtin'&&!synth){ toast('此瀏覽器沒有內建語音，請改用其他語音來源'); return; }
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
-  reading=true;paused=false;readPage=curPage;ttsFails=0;readAhead=null;updateAudioUI();
+  reading=true;paused=false;readPage=curPage;ttsFails=0;updateAudioUI();
+  requestWakeLock();   // 朗讀期間讓螢幕不自動熄屏（否則 iOS 一鎖屏，內建語音就停）
+  setupMediaSession();
   document.body.classList.add('reading-on');
   const tk=++readToken;
   await loadPage(); if(reading&&tk===readToken)playFrom(0,tk);
 }
 function stopReading(){
   readToken++;                       // invalidate any in-flight reading loop
-  readAhead=null;
   reading=false;paused=false;
+  releaseWakeLock();                 // 不再朗讀 → 放開螢幕喚醒，讓它能正常熄屏入睡
+  clearMediaSession();
   document.body.classList.remove('reading-on');
   if(synth)synth.cancel();
-  backgroundSleep=false;
   stopAudio();
-  if(backgroundSleepUrl){if(/^blob:/i.test(backgroundSleepUrl)){try{URL.revokeObjectURL(backgroundSleepUrl);}catch(e){}}backgroundSleepUrl=null;}
-  if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='none';}catch(e){}}
   clearHL();updateAudioUI();
   readTrans.style.display='none';
   document.body.classList.remove('trans-open');
@@ -2606,14 +2301,7 @@ async function showReadTrans(text,nextText){
 let audioSession=0;                // 播放場次編號：共用同一個 audio 元素時，用它辨識「這次播放」是否已被取代
 function stopAudio(){
   audioSession++;                  // 讓仍在跑的舊計時迴圈自己收手
-  if(curAudio){
-    try{
-      curAudio.pause();curAudio.loop=false;
-      curAudio.onended=null;curAudio.onerror=null;curAudio.onplay=null;curAudio.onpause=null;
-      curAudio.ontimeupdate=null;curAudio.onloadedmetadata=null;curAudio.src='';
-    }catch(e){}
-    curAudio=null;
-  }
+  if(curAudio){ try{ curAudio.pause(); curAudio.onended=null; curAudio.onerror=null; curAudio.src=''; }catch(e){} curAudio=null; }
 }
 /* play one <audio> url, resolves on end. Always stops any prior audio first.
    onTime(currentTime,duration) fires ~each frame so callers can move a word highlight. */
@@ -2712,77 +2400,52 @@ async function playGTranslate(text,tk){
   }
 }
 let ttsFails=0;
-/* 把內建語音拆成短而完整的片段，避開行動瀏覽器對長 utterance 偶爾吞字的問題。 */
-function builtinChunks(text){
-  const out=[];
-  const max=hasCJK(text)?48:110;
-  let pos=0;
-  while(pos<text.length){
-    while(pos<text.length&&/\s/.test(text[pos]))pos++;
-    if(pos>=text.length)break;
-    let end=Math.min(text.length,pos+max);
-    if(end<text.length){
-      const slice=text.slice(pos,end);let cut=-1;
-      for(let i=Math.max(12,Math.floor(slice.length*0.45));i<slice.length;i++){
-        if(/[。！？!?；;：:，,、]/.test(slice[i]))cut=i+1;
-        else if(!hasCJK(slice)&&/\s/.test(slice[i]))cut=i;
-      }
-      if(cut>0)end=pos+cut;
-    }
-    const trimmed=text.slice(pos,end).replace(/\s+$/,'');
-    if(trimmed)out.push({text:trimmed,start:pos});
-    pos=end;
-  }
-  return out.length?out:[{text,start:0}];
-}
 /* speak one sentence; resolves when fully done. Handles each engine. */
 async function speakSentence(text,preUrl,tk,s){
   curWords = wordRanges(s&&s.parts);
   if(engine==='builtin'){
-    const speakText=text;
-    let searchFrom=0;
-    const wordCharStart=curWords.map(w=>{
-      let at=speakText.indexOf(w.text,searchFrom);if(at<0)at=searchFrom;
-      searchFrom=Math.min(speakText.length,at+w.text.length);return at;
-    });
-    let lastWi=-1;
-    const pickByChar=ci=>{let wi=0;while(wi+1<wordCharStart.length&&wordCharStart[wi+1]<=ci)wi++;return wi;};
-    const setWi=wi=>{if(wi<lastWi)wi=lastWi;if(wi!==lastWi){lastWi=wi;setWordHi(wi);}};
-    for(const chunk of builtinChunks(speakText)){
-      await gatePause();if(!reading||tk!==readToken)return;
-      await new Promise(res=>{
-      const u=new SpeechSynthesisUtterance(chunk.text);
-      const zh=hasCJK(chunk.text);
+    return new Promise(res=>{
+      // 用與 curWords 同源的文字來唸：這樣 onboundary 回報的 charIndex 才能精準對應到高亮的詞。
+      // 但若 curWords 明顯短於原文（parts 過濾掉太多），就退回原文，避免唸漏字。
+      const joined = curWords.map(w=>w.text).join('');
+      const useJoined = curWords.length>0 && joined.replace(/\s/g,'').length >= text.replace(/\s/g,'').length*0.9;
+      const speakText = useJoined ? joined : text;
+      let acc=0; const wordCharStart = curWords.map(w=>{ const s0=acc; acc+=w.text.length; return s0; });
+      const u=new SpeechSynthesisUtterance(speakText);
+      const zh=hasCJK(speakText);
       const v = zh ? (pickZhVoice()||builtinVoice)
                    : (builtinVoice||voices.find(x=>/^en/i.test(x.lang)));
       if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; u.pitch=1;
-      let gotBoundary=false,startTime=0,fallbackTimer=null;
+      let lastWi=-1, gotBoundary=false, startTime=0, fallbackTimer=null;
+      const pickByChar=(ci)=>{ let wi=0; while(wi+1<wordCharStart.length && wordCharStart[wi+1]<=ci) wi++; return wi; };
+      const setWi=(wi)=>{ if(wi<lastWi)wi=lastWi; if(wi!==lastWi){ lastWi=wi; setWordHi(wi); } };
       u.onboundary=e=>{
         if(!reading||tk!==readToken||!curWords.length)return;
         if(e.name&&e.name!=='word'&&e.name!=='sentence')return;
-        gotBoundary=true;if(fallbackTimer){clearInterval(fallbackTimer);fallbackTimer=null;}
-        setWi(pickByChar(chunk.start+((typeof e.charIndex==='number')?e.charIndex:0)));
+        gotBoundary=true;                 // 這個語音有支援逐字回報 → 停用時間估算的備援
+        if(fallbackTimer){ clearInterval(fallbackTimer); fallbackTimer=null; }
+        setWi(pickByChar((typeof e.charIndex==='number')?e.charIndex:0));
       };
       u.onstart=()=>{
         startTime=Date.now();
-        if(curWords.length&&reading&&tk===readToken)setWi(pickByChar(chunk.start));
+        if(lastWi<0&&curWords.length&&reading&&tk===readToken){ lastWi=0; setWordHi(0); }
+        // 備援：很多瀏覽器（尤其 iOS Safari）對中文不觸發 onboundary，高亮會卡住不動。
+        // 開唸後短時間內若完全沒收到 boundary，就改用「經過時間 ÷ 估計總長」推進高亮。
         setTimeout(()=>{
           if(gotBoundary||!reading||tk!==readToken)return;
-          const perChar=zh?(0.28/Math.max(0.5,rate)):(0.09/Math.max(0.5,rate));
-          const estTotal=Math.max(0.6,chunk.text.length*perChar);
+          const perChar = zh ? (0.28/Math.max(0.5,rate)) : (0.09/Math.max(0.5,rate));  // 每字概估秒數（隨語速調整）
+          const estTotal = Math.max(0.6, speakText.length*perChar);
           fallbackTimer=setInterval(()=>{
-            if(gotBoundary||!reading||tk!==readToken){clearInterval(fallbackTimer);fallbackTimer=null;return;}
+            if(gotBoundary||!reading||tk!==readToken){ clearInterval(fallbackTimer); fallbackTimer=null; return; }
             const elapsed=(Date.now()-startTime)/1000;
-            const p=Math.max(0,Math.min(1,elapsed/estTotal));setWi(pickByChar(chunk.start+Math.floor(p*chunk.text.length)));
+            const p=Math.max(0,Math.min(1,elapsed/estTotal));
+            setWi(Math.min(curWords.length-1,Math.floor(p*curWords.length)));
           },80);
-        },350);
+        }, 350);
       };
       const done=()=>{ if(fallbackTimer){clearInterval(fallbackTimer);fallbackTimer=null;} res(); };
       u.onend=done; u.onerror=done; synth.speak(u);
-      });
-      if(reading&&tk===readToken)await sleep(35);
-    }
-    return;
+    });
   }
   if(engine==='gtranslate'){ return playGTranslate(text,tk); }
   // google / eleven / local — use the already-fetched url, prefetch the next one
@@ -2810,7 +2473,6 @@ async function playFrom(i,tk){
     await gatePause(); if(!reading||tk!==readToken)return;
     sIdx=i;
     const s=sentences[i];
-    if(i>=Math.max(0,sentences.length-2))beginReadAhead(tk);
     // pre-fetch this sentence's audio FIRST, so the highlight appears in sync with the voice
     let preUrl=null, fetchErr=false;
     if(engine!=='builtin'&&engine!=='gtranslate'){
@@ -2838,12 +2500,6 @@ async function playFrom(i,tk){
     }
     catch(err){
       ttsFails++;
-      if(engine==='mobile'&&reading&&tk===readToken&&synth){
-        const failedEngine=engine;engine='builtin';
-        toast('網路／雲端語音中斷，這一句改用內建語音');
-        try{await speakSentence(s.text,null,tk,s);}finally{engine=failedEngine;}
-        if(reading&&tk===readToken){ttsFails=0;i++;continue;}
-      }
       await sleep(150);
       if(tk!==readToken)return;
       if(engine==='gtranslate'&&ttsFails>=2){ stopReading(); toast('Google 翻譯語音目前無法使用，請改用「內建語音」'); return; }
@@ -2853,72 +2509,11 @@ async function playFrom(i,tk){
     if(!reading||tk!==readToken)return;
     i++;
   }
-  if(reading&&tk===readToken){ readPage+=step(); await loadPage(tk); if(reading&&tk===readToken)return playFrom(0,tk); }
+  if(reading&&tk===readToken){ readPage+=step(); await loadPage(); if(reading&&tk===readToken)return playFrom(0,tk); }
 }
 playBtn.onclick=startReading;
 stopBtn.onclick=stopReading;
-async function startSleepBackground(){
-  if(!docLoaded())return;
-  if(backgroundSleep){stopReading();toast('已停止睡眠背景播放');return;}
-  const worker=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim();
-  if(!worker){engine='mobile';engineSel.value='mobile';populateVoiceSel();openTtsSettings();toast('請先設定手機自然語音 Worker');return;}
-  const selected=$('sleepSel').value;
-  let mins=parseInt(selected,10);
-  if(!Number.isFinite(mins)||mins<5||mins>60){toast('請先在「⏰ 定時」選擇 5～60 分鐘，再按睡眠背景播放');return;}
-  clearSleepTimer();sleepMode='timer';stopReading();
-
-  // 使用固定存在於頁面裡的原生 audio，並在點擊當下循環播放靜音，保住 iOS 的播放授權。
-  // 真正音訊改用 HTTPS 網址，避免大型 blob: 在鎖屏後被 WebKit 暫停或回收。
-  const a=$('sleepAudio');
-  if(!a){toast('找不到背景音訊播放器');return;}
-  a.loop=true;
-  a.src=worker.replace(/\/$/,'')+'/silence.wav';
-  curAudio=a;
-  try{await a.play();}catch(e){stopReading();toast('手機阻擋了音訊啟動，請再按一次睡眠背景播放');return;}
-  showLoading('正在準備 '+mins+' 分鐘的睡眠背景音訊…');
-  try{
-    let text='',estimated=0,lastPage=curPage;
-    for(let p=curPage;p<=totalPages&&text.length<60000&&estimated<mins*1.08;p++){
-      const t=(await getPageText(p)).replace(/\s+/g,' ').trim();if(!t)continue;
-      text+=(text?'\n':'')+t;estimated=estimateMinutesForText(text);lastPage=p;
-    }
-    if(!text)throw new Error('目前頁面之後沒有可朗讀文字');
-    if(estimated>mins*1.05){
-      const keep=Math.max(1,Math.floor(text.length*(mins/estimated)));
-      text=text.slice(0,keep).replace(/\s+\S*$/,'').trim();estimated=estimateMinutesForText(text);
-    }
-    const url=await mobileTTSPrepare(text);
-    if(curAudio!==a)return;
-    backgroundSleepUrl=url;backgroundSleep=true;reading=true;paused=false;readPage=lastPage;
-    document.body.classList.add('reading-on');
-    a.loop=false;a.src=url;a.preload='auto';a.load();
-    a.onended=()=>{if(curAudio!==a)return;stopReading();$('sleepSel').value='0';toast('🌙 睡眠背景播放已結束');};
-    a.onerror=()=>{if(curAudio!==a)return;stopReading();toast('背景音訊播放失敗，請重新準備');};
-    a.onplay=()=>{paused=false;if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='playing';}catch(e){}}updateAudioUI();};
-    a.onpause=()=>{if(backgroundSleep){paused=true;if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='paused';}catch(e){}}updateAudioUI();}};
-    const syncPosition=()=>{
-      if(!('mediaSession' in navigator)||!navigator.mediaSession.setPositionState)return;
-      const d=a.duration,t=a.currentTime;
-      if(Number.isFinite(d)&&d>0&&Number.isFinite(t)){try{navigator.mediaSession.setPositionState({duration:d,playbackRate:a.playbackRate||1,position:Math.min(t,d)});}catch(e){}}
-    };
-    a.onloadedmetadata=syncPosition;a.ontimeupdate=syncPosition;
-    if('mediaSession' in navigator){
-      try{
-        navigator.mediaSession.metadata=new MediaMetadata({title:'睡眠背景朗讀',artist:document.title||'翻頁閱讀器',album:'約 '+Math.round(estimated)+' 分鐘'});
-        navigator.mediaSession.setActionHandler('play',()=>{a.play().catch(()=>{});paused=false;updateAudioUI();});
-        navigator.mediaSession.setActionHandler('pause',()=>{a.pause();paused=true;updateAudioUI();});
-        navigator.mediaSession.setActionHandler('seekto',e=>{if(Number.isFinite(e.seekTime)){a.currentTime=Math.max(0,Math.min(e.seekTime,a.duration||e.seekTime));syncPosition();}});
-        navigator.mediaSession.setActionHandler('seekbackward',e=>{a.currentTime=Math.max(0,a.currentTime-(e.seekOffset||15));syncPosition();});
-        navigator.mediaSession.setActionHandler('seekforward',e=>{a.currentTime=Math.min(a.duration||Infinity,a.currentTime+(e.seekOffset||15));syncPosition();});
-        navigator.mediaSession.setActionHandler('stop',()=>stopReading());
-      }catch(e){}
-    }
-    await a.play();syncPosition();updateAudioUI();
-    toast('🌙 已開始約 '+Math.round(estimated)+' 分鐘背景播放；聽到聲音後即可鎖定螢幕');
-  }catch(e){if(curAudio===a)stopReading();toast('無法開始背景播放：'+(e&&e.message?e.message:'未知錯誤'));}
-  finally{hideLoading();}
-}
-$('sleepBgBtn').onclick=startSleepBackground;
+setInterval(()=>{ if(reading&&!paused&&engine==='builtin'&&synth&&synth.speaking){ synth.pause(); synth.resume(); } },9000);
 
 /* double-click a sentence to start reading from there */
 function readFromSpan(span){
@@ -2929,6 +2524,8 @@ function readFromSpan(span){
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
   stopReading();                                  // cleanly stop any current playback
   reading=true; paused=false; ttsFails=0;
+  requestWakeLock();   // 朗讀期間讓螢幕不自動熄屏
+  setupMediaSession();
   document.body.classList.add('reading-on');
   readPage=(viewMode==='spread'&&totalPages>1)?((curPage%2===0&&curPage>1)?curPage-1:curPage):curPage;
   // build sentences for the currently displayed page/spread (no repaint)
@@ -2994,16 +2591,14 @@ function openTtsSettings(){
         +'<p>Kokoro 英文語音例：af_heart、af_bella、am_adam、bf_emma；中文語音例：zf_xiaoxiao、zf_xiaobei、zm_yunxi、zm_yunyang。語速用上方速度選單。<br>'
         +'啟動伺服器（Docker）：<br><code>docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest</code></p>'
         +'<p style="color:#caa15a">若朗讀時出現連線錯誤，多半是伺服器的 CORS 設定需允許跨來源請求；Kokoro‑FastAPI 預設通常已允許。</p>';
-  }else if(engine==='mobile'){
-    const worker=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT);
-    const gEn=lsGet('tts_mobile_en','en-US-Neural2-F');
-    const gZh=lsGet('tts_mobile_zh','cmn-TW-Wavenet-A');
-    html='<p><b>適合 iPhone／Android 的自然語音。</b>閱讀器只保存 Worker 網址；Google API 金鑰只存在 Cloudflare Worker Secret。</p>'
-        +'<label>Cloudflare Worker 網址（HTTPS）</label><input id="ttsMobileWorker" type="url" placeholder="https://reader-tts.你的帳號.workers.dev" value="'+worker.replace(/"/g,'&quot;')+'">'
-        +'<label>英文語音</label><select id="ttsMobileEn">'+GOOGLE_VOICES.map(v=>'<option value="'+v.id+'"'+(v.id===gEn?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
-        +'<label>中文語音（台灣國語）</label><select id="ttsMobileZh">'+GOOGLE_VOICES_ZH.map(v=>'<option value="'+v.id+'"'+(v.id===gZh?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
-        +'<button class="btn" id="ttsTestMobile" style="margin-top:12px">🔌 測試手機自然語音</button>'
-        +'<p>Worker 端會執行每日字數上限。網路失敗時，正式朗讀會自動退回裝置內建語音。iPhone 鎖屏播放請用 Safari 開啟網站，避免 LINE／Facebook／Instagram 的內建瀏覽器。</p>';
+  }else if(engine==='google'){
+    const gEn=lsGet('tts_google_en','en-US-Neural2-F');
+    const gZh=lsGet('tts_google_zh','cmn-TW-Wavenet-A');
+    html='<p>Google Cloud Text-to-Speech 提供自然的 Neural2／WaveNet 語音，中文會用台灣國語（cmn-TW）語音，不是大陸腔調。需要妳自己的 API 金鑰；金鑰只會存在這台裝置的瀏覽器，並只直接送給 Google。</p>'
+        +'<label>Google API 金鑰</label><input id="ttsKey" type="password" placeholder="AIza..." value="'+keyFor('google').replace(/"/g,'&quot;')+'">'
+        +'<label>英文語音</label><select id="ttsGoogleEn">'+GOOGLE_VOICES.map(v=>'<option value="'+v.id+'"'+(v.id===gEn?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
+        +'<label>中文語音（台灣國語）</label><select id="ttsGoogleZh">'+GOOGLE_VOICES_ZH.map(v=>'<option value="'+v.id+'"'+(v.id===gZh?' selected':'')+'>'+v.label+'</option>').join('')+'</select>'
+        +'<p>會依每個句子自動判斷用英文或中文語音朗讀。在 Google Cloud Console 啟用「Cloud Text-to-Speech API」並建立 API 金鑰即可。語速可用上方的速度選單調整。</p>';
   }else if(engine==='eleven'){
     html='<p>ElevenLabs 提供最自然的語音。需要妳自己的 API 金鑰；金鑰只會存在這台裝置的瀏覽器，並只直接送給 ElevenLabs。</p>'
         +'<label>ElevenLabs API 金鑰</label><input id="ttsKey" type="password" placeholder="sk_..." value="'+keyFor('eleven').replace(/"/g,'&quot;')+'">'
@@ -3060,23 +2655,6 @@ function openTtsSettings(){
       toast('❌ 連不到伺服器：請確認 Kokoro 已啟動；若已啟動，多半是用 file:// 開啟被瀏覽器擋住（見說明）');
     }
   };
-  const tmb=$('ttsTestMobile'); if(tmb)tmb.onclick=async()=>{
-    const input=$('ttsMobileWorker'); if(input)lsSet('tts_mobile_worker',input.value.trim());
-    const ve=$('ttsMobileEn'); if(ve)lsSet('tts_mobile_en',ve.value);
-    const vz=$('ttsMobileZh'); if(vz)lsSet('tts_mobile_zh',vz.value);
-    unlockAudio();
-    toast('測試手機自然語音中…');
-    let url='';
-    try{
-      url=await mobileTTS('這是手機自然語音測試。');
-      await playAudioEl(url);
-      toast('✅ 手機自然語音連線成功');
-    }catch(e){
-      toast(lastCloudError||'❌ 手機自然語音連線失敗，請檢查 Worker 網址');
-    }finally{
-      if(url)URL.revokeObjectURL(url);
-    }
-  };
 }
 $('ttsCancel').onclick=()=>ttsModal.style.display='none';
 $('ttsSave').onclick=()=>{
@@ -3085,9 +2663,8 @@ $('ttsSave').onclick=()=>{
   const m=$('ttsLocalModel'); if(m)lsSet('tts_local_model',m.value.trim());
   const en=$('ttsLocalEn'); if(en)lsSet('tts_local_en',en.value.trim());
   const zh=$('ttsLocalZh'); if(zh)lsSet('tts_local_zh',zh.value.trim());
-  const mw=$('ttsMobileWorker'); if(mw)lsSet('tts_mobile_worker',mw.value.trim());
-  const me=$('ttsMobileEn'); if(me)lsSet('tts_mobile_en',me.value);
-  const mz=$('ttsMobileZh'); if(mz)lsSet('tts_mobile_zh',mz.value);
+  const gEn=$('ttsGoogleEn'); if(gEn)lsSet('tts_google_en',gEn.value);
+  const gZh=$('ttsGoogleZh'); if(gZh)lsSet('tts_google_zh',gZh.value);
   const trU=$('trLocalUrl'); if(trU)lsSet('tr_local_url',trU.value.trim());
   const trT=$('trLocalTarget'); if(trT)lsSet('tr_local_target',trT.value);
   const tsel=$('trSource'); if(tsel){ transSource=tsel.value; lsSet('tr_source',transSource); }
@@ -3105,10 +2682,8 @@ function switchDrawerTab(tab){
   document.querySelectorAll('.dtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
   $('tocList').style.display = tab==='toc' ? '' : 'none';
   $('bmList').style.display = tab==='bm' ? '' : 'none';
-  $('annoList').style.display = tab==='anno' ? '' : 'none';
   $('searchPanel').style.display = tab==='search' ? 'flex' : 'none';
   if(tab==='bm') renderBookmarkList();
-  if(tab==='anno') renderAnnotationList($('annoList'));
   if(tab==='search' && !searchIndexReady && !searchIndexBuilding) ensureSearchIndex();
 }
 document.querySelectorAll('.dtab').forEach(b=>{ b.onclick=()=>switchDrawerTab(b.dataset.tab); });
@@ -3345,60 +2920,22 @@ $('wcHi').onclick=()=>{ annotateSelection('h','rgba(245,222,90,.55)'); hideWordC
 
 /* ---------- annotations (highlight / underline + notes) ---------- */
 let annotations={};
-function loadAnno(){ try{annotations=JSON.parse(lsGet('anno_'+fileKey,'{}'))||{};}catch(e){annotations={};} if(typeof syncAnnotationUI==='function')syncAnnotationUI(); }
+function loadAnno(){ try{annotations=JSON.parse(lsGet('anno_'+fileKey,'{}'))||{};}catch(e){annotations={};} }
 function saveAnno(){ try{lsSet('anno_'+fileKey,JSON.stringify(annotations));}catch(e){} }
-function annotationCount(){return Object.values(annotations).reduce((n,list)=>n+(Array.isArray(list)?list.length:0),0);}
-function annotationTime(a){
-  const saved=Number(a&&a.createdAt);if(saved)return saved;
-  const id=String(a&&a.id||'');const parsed=parseInt(id.length>4?id.slice(1,-3):id.slice(1),36);return Number.isFinite(parsed)?parsed:0;
-}
-function syncAnnotationUI(){const undo=$('mMarkUndo');if(undo)undo.disabled=annotationCount()===0;}
-function removeAnnotationById(id,repaint=true){
-  for(const p in annotations){
-    const list=annotations[p],idx=Array.isArray(list)?list.findIndex(a=>a.id===id):-1;
-    if(idx<0)continue;
-    list.splice(idx,1);if(!list.length)delete annotations[p];saveAnno();syncAnnotationUI();
-    if(typeof curAnno!=='undefined'&&curAnno&&curAnno.a&&curAnno.a.id===id)hideAnnoPop();
-    if(repaint)paintBook();return +p;
-  }
-  return 0;
-}
-function undoLastAnnotation(){
-  let newest=null,seq=0;
-  for(const p in annotations){for(const a of annotations[p]){const item={a,page:+p,time:annotationTime(a),seq:seq++};if(!newest||item.time>newest.time||(item.time===newest.time&&item.seq>newest.seq))newest=item;}}
-  if(!newest){syncAnnotationUI();toast('目前沒有可撤銷的劃記');return false;}
-  removeAnnotationById(newest.a.id,true);toast('已撤銷第 '+newest.page+' 頁的上一筆劃記');return true;
-}
 function spanMapFull(spans){ const map=new Map(); let full=''; spans.forEach(sp=>{const t=sp.textContent||'';const s=full.length;full+=t;map.set(sp,{start:s,end:full.length});full+=' ';}); return {map,full}; }
-function wrapAnnoPart(sp,from,to,a){
-  const nodes=[]; let pos=0;
-  const walker=document.createTreeWalker(sp,NodeFilter.SHOW_TEXT);
-  while(walker.nextNode()){ const node=walker.currentNode,len=node.data.length; nodes.push({node,start:pos,end:pos+len}); pos+=len; }
-  nodes.forEach(n=>{
-    const lo=Math.max(from,n.start)-n.start, hi=Math.min(to,n.end)-n.start;
-    if(hi<=lo)return;
-    const range=document.createRange(); range.setStart(n.node,lo); range.setEnd(n.node,hi);
-    const mark=document.createElement('mark'); mark.className='anno-fragment '+(a.type==='u'?'anno-u':'anno-h'); mark.dataset.annoId=a.id;
-    if(a.type==='h') mark.style.background=a.color;
-    else{ mark.style.background='transparent'; mark.style.textDecoration='underline'; mark.style.textDecorationColor=a.color; mark.style.textDecorationThickness='2px'; mark.style.textUnderlineOffset='2px'; }
-    if(a.note)mark.title='📝 '+a.note;
-    try{range.surroundContents(mark);}catch(e){}
-  });
-}
 function applyAnnotations(leaf){
   const page=+leaf.dataset.page;
-  let old; while((old=leaf.querySelector('mark.anno-fragment')))old.replaceWith(...old.childNodes);
-  const spans=[...leaf.querySelectorAll('.textLayer span')];
-  spans.forEach(sp=>{sp.normalize();sp.classList.remove('anno');delete sp.dataset.annoId;sp.style.background='';sp.style.borderBottom='';if((sp.title||'').startsWith('📝 '))sp.removeAttribute('title');});
   const list=annotations[page]; if(!list||!list.length)return;
+  const spans=[...leaf.querySelectorAll('.textLayer span')];
   const {map}=spanMapFull(spans);
   list.forEach(a=>{
-    spans.forEach(sp=>{const m=map.get(sp); if(m&&m.end>a.start&&m.start<a.end)wrapAnnoPart(sp,Math.max(0,a.start-m.start),Math.min(m.end-m.start,a.end-m.start),a);});
+    spans.forEach(sp=>{const m=map.get(sp); if(m&&m.end>a.start&&m.start<a.end){
+      sp.classList.add('anno'); sp.dataset.annoId=a.id;
+      if(a.type==='h') sp.style.background=a.color;
+      else sp.style.borderBottom='2px solid '+a.color;
+      if(a.note){ sp.title='📝 '+a.note; }
+    }});
   });
-}
-function offsetInsideSpan(sp,node,offset){
-  if(!(sp===node||sp.contains(node)))return null;
-  try{const r=document.createRange();r.selectNodeContents(sp);r.setEnd(node,offset);return r.toString().length;}catch(e){return null;}
 }
 function annotateSelection(type,color){
   const sel=window.getSelection(); if(!sel.rangeCount){toast('請先選取文字');return;}
@@ -3406,96 +2943,20 @@ function annotateSelection(type,color){
   let node=range.startContainer; node=node.nodeType===3?node.parentElement:node;
   const leaf=node&&node.closest?node.closest('.leaf'):null;
   if(!leaf||leaf.dataset.page==null){toast('這一頁無法標記（可能是圖片頁）');return;}
-  let endNode=range.endContainer;endNode=endNode.nodeType===3?endNode.parentElement:endNode;
-  if(!endNode||!endNode.closest||endNode.closest('.leaf')!==leaf){toast('一次只能標記同一頁的文字');return;}
   const spans=[...leaf.querySelectorAll('.textLayer span')];
   const hit=spans.filter(sp=>(sp.textContent||'').trim()&&range.intersectsNode(sp));
   if(!hit.length){toast('請先選取文字');return;}
   const {map}=spanMapFull(spans);
-  let start=map.get(hit[0]).start, end=map.get(hit[hit.length-1]).end;
-  const localStart=offsetInsideSpan(hit[0],range.startContainer,range.startOffset);
-  const localEnd=offsetInsideSpan(hit[hit.length-1],range.endContainer,range.endOffset);
-  if(localStart!=null)start+=localStart;
-  if(localEnd!=null)end=map.get(hit[hit.length-1]).start+localEnd;
-  if(end<=start){toast('請拖過想標記的文字');return;}
+  const start=map.get(hit[0]).start, end=map.get(hit[hit.length-1]).end;
   const page=+leaf.dataset.page;
-  const now=Date.now();
-  const a={id:'a'+now.toString(36)+Math.random().toString(36).slice(2,5),createdAt:now,start,end,type,color,note:''};
+  const a={id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),start,end,type,color,note:''};
   (annotations[page]=annotations[page]||[]).push(a);
-  saveAnno(); syncAnnotationUI(); applyAnnotations(leaf);
+  saveAnno(); applyAnnotations(leaf);
   hideTPop(); sel.removeAllRanges();
   toast(type==='h'?'已螢光標記':'已畫底線');
 }
 $('aHi').onclick=()=>annotateSelection('h','rgba(245,222,90,.55)');
 $('aUl').onclick=()=>annotateSelection('u','#e0533d');
-
-/* 手機劃記模式：手指拖過文字，放開後直接存成螢光標記。模式關閉時仍保留原本的滑動翻頁／捲動。 */
-let touchMarkMode=false,touchMarkDrag=null;
-function domPointAtTextOffset(sp,offset){
-  const walker=document.createTreeWalker(sp,NodeFilter.SHOW_TEXT);let left=Math.max(0,offset),last=null;
-  while(walker.nextNode()){const n=walker.currentNode;last=n;if(left<=n.data.length)return {node:n,offset:left};left-=n.data.length;}
-  return last?{node:last,offset:last.data.length}:null;
-}
-function markPointAt(x,y,leafOnly){
-  let node=null,offset=0;
-  try{
-    if(document.caretPositionFromPoint){const p=document.caretPositionFromPoint(x,y);if(p){node=p.offsetNode;offset=p.offset;}}
-    else if(document.caretRangeFromPoint){const r=document.caretRangeFromPoint(x,y);if(r){node=r.startContainer;offset=r.startOffset;}}
-  }catch(e){}
-  let el=node?(node.nodeType===3?node.parentElement:node):null;
-  let sp=el&&el.closest?el.closest('.textLayer span'):null;
-  if(!sp){const hit=document.elementFromPoint(x,y);sp=hit&&hit.closest?hit.closest('.textLayer span'):null;}
-  if(!sp)return null;
-  const leaf=sp.closest('.leaf');if(!leaf||(leafOnly&&leaf!==leafOnly))return null;
-  if(!node||!(sp===node||sp.contains(node))){
-    const r=sp.getBoundingClientRect(),ratio=r.width?Math.max(0,Math.min(1,(x-r.left)/r.width)):0;
-    const p=domPointAtTextOffset(sp,Math.round((sp.textContent||'').length*ratio));if(!p)return null;node=p.node;offset=p.offset;
-  }
-  return {node,offset,leaf};
-}
-function rangeBetweenPoints(a,b){
-  try{
-    const ar=document.createRange(),br=document.createRange(),out=document.createRange();
-    ar.setStart(a.node,a.offset);ar.collapse(true);br.setStart(b.node,b.offset);br.collapse(true);
-    if(ar.compareBoundaryPoints(Range.START_TO_START,br)<=0){out.setStart(a.node,a.offset);out.setEnd(b.node,b.offset);}
-    else{out.setStart(b.node,b.offset);out.setEnd(a.node,a.offset);}
-    return out;
-  }catch(e){return null;}
-}
-function showTouchMarkRange(end){
-  if(!touchMarkDrag)return;
-  const range=rangeBetweenPoints(touchMarkDrag.start,end);if(!range)return;
-  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);touchMarkDrag.end=end;
-}
-function setTouchMarkMode(on){
-  touchMarkMode=!!on;touchMarkDrag=null;document.body.classList.toggle('mark-mode',touchMarkMode);document.body.classList.remove('m-immersive');
-  const sel=window.getSelection();if(sel)sel.removeAllRanges();
-  if(touchMarkMode){if(reading)stopReading();hideTPop();hideWordCard();hideAnnoPop();toast('劃記模式：用手指拖過文字，放開即可標記');}
-}
-$('mMarkDone').onclick=()=>setTouchMarkMode(false);
-$('mMarkUndo').onclick=undoLastAnnotation;
-syncAnnotationUI();
-stage.addEventListener('touchstart',e=>{
-  if(!touchMarkMode||e.touches.length!==1)return;
-  const t=e.touches[0],p=markPointAt(t.clientX,t.clientY,null);if(!p)return;
-  e.preventDefault();e.stopPropagation();touchMarkDrag={start:p,end:p,x:t.clientX,y:t.clientY,moved:false};showTouchMarkRange(p);
-},{capture:true,passive:false});
-stage.addEventListener('touchmove',e=>{
-  if(!touchMarkMode||!touchMarkDrag||e.touches.length!==1)return;
-  e.preventDefault();e.stopPropagation();const t=e.touches[0],p=markPointAt(t.clientX,t.clientY,touchMarkDrag.start.leaf);
-  if(Math.hypot(t.clientX-touchMarkDrag.x,t.clientY-touchMarkDrag.y)>4)touchMarkDrag.moved=true;
-  if(p)showTouchMarkRange(p);
-},{capture:true,passive:false});
-stage.addEventListener('touchend',e=>{
-  if(!touchMarkMode||!touchMarkDrag)return;
-  e.preventDefault();e.stopPropagation();
-  const t=e.changedTouches&&e.changedTouches[0],p=t&&markPointAt(t.clientX,t.clientY,touchMarkDrag.start.leaf);if(p)showTouchMarkRange(p);
-  const sel=window.getSelection(),text=sel?sel.toString().trim():'';
-  if(touchMarkDrag.moved&&text)annotateSelection('h','rgba(245,222,90,.55)');
-  else{if(sel)sel.removeAllRanges();toast('請按住並拖過想標記的文字');}
-  touchMarkDrag=null;
-},{capture:true,passive:false});
-stage.addEventListener('touchcancel',()=>{touchMarkDrag=null;const sel=window.getSelection();if(sel)sel.removeAllRanges();},{capture:true});
 
 /* note popup on clicking an existing mark */
 const annoPop=$('annoPop'),annoNote=$('annoNote');
@@ -3517,7 +2978,7 @@ document.addEventListener('click',e=>{
   if(annoPop.contains(e.target)||tpop.contains(e.target)||wordCard.contains(e.target)||(readTrans&&readTrans.contains(e.target)))return;
   if(window.getSelection().toString().trim())return;       // a fresh selection → let translate handle it
   hideWordCard();
-  const mark=e.target.closest&&e.target.closest('mark.anno-fragment,.textLayer span.anno');
+  const mark=e.target.closest&&e.target.closest('.textLayer span.anno');
   if(mark){ openAnnoPop(mark); return; }                    // clicking a mark edits its note
   hideAnnoPop();
   const sp=e.target.closest&&e.target.closest('.textLayer span');
@@ -3527,7 +2988,7 @@ document.addEventListener('click',e=>{
   }
 });
 $('annoSave').onclick=()=>{ if(!curAnno)return; annotations[curAnno.page][curAnno.idx].note=annoNote.value.trim(); saveAnno(); paintBook(); hideAnnoPop(); toast('已儲存筆記'); };
-$('annoRemove').onclick=()=>{ if(!curAnno)return; const id=curAnno.a.id; removeAnnotationById(id,true); toast('已移除標記'); };
+$('annoRemove').onclick=()=>{ if(!curAnno)return; annotations[curAnno.page].splice(curAnno.idx,1); if(!annotations[curAnno.page].length)delete annotations[curAnno.page]; saveAnno(); paintBook(); hideAnnoPop(); toast('已移除標記'); };
 annoPop.addEventListener('mousedown',e=>e.stopPropagation());
 
 /* ---------- 匯出引擎（生字清單 / 筆記摘要 共用）---------- */
@@ -3577,34 +3038,6 @@ function downloadTextFile(filename,content,mime){
 }
 function bookBaseName(){ return ($('filename').textContent||'書本').replace(/\.(pdf|docx|epub)$/i,'').replace(/[\\/:*?"<>|]/g,'_'); }
 function annotatedPages(){ return Object.keys(annotations).map(Number).filter(p=>annotations[p]&&annotations[p].length).sort((a,b)=>a-b); }
-let annotationListToken=0;
-async function renderAnnotationList(list,onNavigate){
-  if(!list)return;
-  const myToken=++annotationListToken,pages=annotatedPages();
-  list.innerHTML='<div class="toc-empty">'+(pages.length?'正在整理劃記內容…':'目前還沒有劃記。開啟「劃記模式」，用手指拖過文字即可加入。')+'</div>';
-  if(!pages.length)return;
-  const entries=[];
-  for(const page of pages){
-    const full=await getPageFullTextForAnno(page);
-    for(const a of (annotations[page]||[]).slice())entries.push({page,a,text:(full?full.slice(a.start,a.end):'').trim().replace(/\s+/g,' ')||'（此頁文字無法取得）'});
-  }
-  if(myToken!==annotationListToken||!list.isConnected)return;
-  entries.sort((x,y)=>x.page-y.page||x.a.start-y.a.start);
-  list.innerHTML='';
-  const summary=document.createElement('div');summary.className='anno-summary';summary.textContent='共 '+entries.length+' 筆劃記，分布在 '+pages.length+' 頁';list.appendChild(summary);
-  entries.forEach(entry=>{
-    const row=document.createElement('div');row.className='bm-row anno-row';
-    const link=document.createElement('button');link.className='bm-link';link.type='button';
-    const meta=document.createElement('span');meta.className='pg';meta.textContent='第 '+entry.page+' 頁 · '+(entry.a.type==='u'?'底線':'螢光');
-    const snippet=document.createElement('span');snippet.className='anno-snippet';snippet.textContent=entry.text;
-    link.appendChild(meta);link.appendChild(snippet);
-    if(entry.a.note){const note=document.createElement('span');note.className='anno-note';note.textContent='📝 '+entry.a.note;link.appendChild(note);}
-    link.onclick=()=>{setTouchMarkMode(false);if(onNavigate)onNavigate();jumpTo(entry.page);};
-    const del=document.createElement('button');del.className='bm-del';del.type='button';del.title='刪除這筆劃記';del.setAttribute('aria-label','刪除這筆劃記');del.textContent='🗑';
-    del.onclick=()=>{removeAnnotationById(entry.a.id,true);renderAnnotationList(list,onNavigate);toast('已刪除這筆劃記');};
-    row.appendChild(link);row.appendChild(del);list.appendChild(row);
-  });
-}
 
 async function exportVocabCSV(){
   const pages=annotatedPages().filter(p=>annotations[p].some(a=>a.type==='h'));
@@ -3925,7 +3358,6 @@ async function enterReflowMode(){
       if(blocks.length<3){ toast('目前辨識的文字太少，請先按「辨識文字」完成整本 OCR 再試'); hideLoading(); return; }
       try{ const rec=await libGet(fileKey); if(rec){ rec.reflowBlocks=blocks; await libPut(rec); } }catch(e){}
     }
-    if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); if(flowFontScale<1.35)setFlowFontScale(1.35); }
     detectedFlowShape=detectFlowShape(blocks);
     const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
     if(cancelled||myToken!==loadToken)return;
@@ -4030,45 +3462,6 @@ async function runBatchOcr(){
 $('ocrBtn').onclick=()=>{ if(ocrBatchRunning){ toast('正在辨識中…'); return; } runBatchOcr(); };
 ocrProgCancel.onclick=()=>{ ocrBatchCancel=true; };
 
-/* 護眼模式的大型閱讀控制與「更多」選單。技術設定仍保留在完整模式，這裡只顯示日常功能。 */
-function closeElderMenu(){ $('mSheet').style.display='none'; $('mSheetBg').style.display='none'; }
-function openElderMenu(){
-  const tile=(emoji,label,act,on=false)=>'<button class="m-tile'+(on?' on':'')+'" data-elder-act="'+act+'"><span class="em">'+emoji+'</span>'+label+'</button>';
-  let html='<div class="m-sheet-sec">閱讀工具</div><div class="m-grid">';
-  html+=tile('🏠','回到首頁','home');
-  html+=tile('🔖',bookmarks.has(curPage)?'移除書籤':'加入書籤','bookmark',bookmarks.has(curPage));
-  html+=tile('🖍',touchMarkMode?'結束劃記':'開始劃記','mark',touchMarkMode);
-  html+=tile('📒','查看劃記','marks');
-  html+=tile('↶','撤銷劃記','undo');
-  html+=tile('🌙','睡眠播放','sleep');
-  html+='</div><div class="m-sheet-sec">高對比主題</div><div class="m-grid">';
-  html+=tile('☀️','白天','theme-day',readerTheme==='day');
-  html+=tile('📜','米黃','theme-sepia',readerTheme==='sepia');
-  html+=tile('🌙','夜間','theme-night',readerTheme==='night');
-  html+=tile('⚙️','完整模式','full');
-  html+='</div>';
-  $('mSheetTitle').textContent='更多'; $('mSheetBody').innerHTML=html;
-  $('mSheet').style.display='block'; $('mSheetBg').style.display='block'; $('mSheetBg').onclick=closeElderMenu;
-  $('mSheetBody').querySelectorAll('[data-elder-act]').forEach(btn=>btn.onclick=()=>{
-    const act=btn.dataset.elderAct;
-    if(act==='home'){ empty.style.display='flex'; renderShelf(); updateUsage(); syncElderUi(); closeElderMenu(); }
-    else if(act==='bookmark'){ toggleBookmark(); openElderMenu(); }
-    else if(act==='mark'){ setTouchMarkMode(!touchMarkMode); closeElderMenu(); }
-    else if(act==='marks'){ closeElderMenu(); switchDrawerTab('anno'); openDrawer(); }
-    else if(act==='undo'){ undoLastAnnotation(); openElderMenu(); }
-    else if(act==='sleep'){ closeElderMenu(); $('sleepBgBtn').click(); }
-    else if(act.startsWith('theme-')){ applyReaderTheme(act.slice(6),true); openElderMenu(); }
-    else if(act==='full'){ closeElderMenu(); setElderMode(false); }
-  });
-}
-$('elderPrev').onclick=()=>{ if(docLoaded())jumpTo(curPage-1); };
-$('elderNext').onclick=()=>{ if(docLoaded())jumpTo(curPage+1); };
-$('elderPlay').onclick=()=>{ if(docLoaded())$('playBtn').click(); };
-$('elderFontMinus').onclick=()=>{ if(docLoaded())$('zoomOut').click(); };
-$('elderFontPlus').onclick=()=>{ if(docLoaded())$('zoomIn').click(); };
-$('elderMore').onclick=openElderMenu;
-syncElderUi();
-
 /* ============================================================
    手機極簡閱讀介面：把控制項收進選單面板，閱讀時介面乾淨
    ============================================================ */
@@ -4089,9 +3482,7 @@ syncElderUi();
   function mainMenuHTML(){
     const canRead=docLoaded();
     const tile=(emoji,label,act,on,dis)=>`<button class="m-tile${on?' on':''}" data-act="${act}"${dis?' disabled':''}><span class="em">${emoji}</span>${label}</button>`;
-    let g='<div class="m-sheet-sec">閱讀模式</div><div class="m-grid">';
-    g+=tile('👓','護眼模式','elder',elderMode);
-    g+='</div><div class="m-sheet-sec">書籍</div><div class="m-grid">';
+    let g='<div class="m-sheet-sec">書籍</div><div class="m-grid">';
     g+=tile('📂','開啟檔案','open');
     g+=tile('📚','書櫃','shelf');
     g+=tile('☰','目錄','toc',false,!canRead);
@@ -4099,22 +3490,11 @@ syncElderUi();
     g+=tile('🔖','書籤','bm',false,!canRead);
     g+=tile('📤','匯出','export',false,!canRead);
     g+='</div>';
-    g+='<div class="m-sheet-sec">劃記</div><div class="m-grid">';
-    g+=tile('🖍',touchMarkMode?'結束劃記':'開始劃記','mark',touchMarkMode,!canRead);
-    g+=tile('📒','查看劃記','marks',false,!canRead||!annotationCount());
-    g+=tile('↶','撤銷劃記','undo',false,!canRead||!annotationCount());
-    g+='</div>';
     g+='<div class="m-sheet-sec">檢視</div><div class="m-grid">';
     g+=tile('📄','單頁',    'single', viewMode==='single');
     g+=tile('📖','雙頁',    'spread', viewMode==='spread');
-    g+=tile('↕️','向下捲動','continuous',viewMode==='continuous');
     g+=tile('➖', docType==='flow'?'縮小字':'縮小','zoomout');
     g+=tile('➕', docType==='flow'?'放大字':'放大','zoomin');
-    g+='</div>';
-    g+='<div class="m-sheet-sec">高對比主題</div><div class="m-grid">';
-    g+=tile('☀️','白天','theme-day',readerTheme==='day');
-    g+=tile('📜','米黃','theme-sepia',readerTheme==='sepia');
-    g+=tile('🌙','夜間','theme-night',readerTheme==='night');
     g+='</div>';
     let extras='';
     if($('ocrBtn').style.display!=='none') extras+=tile('🔍','辨識文字','ocr');
@@ -4123,18 +3503,13 @@ syncElderUi();
     if(extras){ g+='<div class="m-sheet-sec">進階</div><div class="m-grid">'+extras+'</div>'; }
     g+='<div class="m-sheet-sec">朗讀</div><div class="m-grid">';
     g+=tile('🔊','開始朗讀','read',false,!canRead);
-    g+=tile('🌙','睡眠背景播放','sleepbg',false,!canRead);
     g+=tile('🎙','語音設定','voice');
     g+=tile('🎨','標示顏色','hlcolor');
-    g+=tile('⚙','進階設定','voicegear');
+    g+=tile('⚙','金鑰設定','voicegear');
     g+='</div>';
     return g;
   }
   function openMainMenu(){ openSheet('選單', mainMenuHTML()); }
-  async function openMarksSheet(){
-    openSheet('劃記內容','<div id="mAnnoList"><div class="toc-empty">正在整理劃記內容…</div></div>');
-    await renderAnnotationList($('mAnnoList'),closeSheet);
-  }
 
   function voiceMenuHTML(){
     const opts=(sel)=>[...$(sel).options].map(o=>`<option value="${o.value}"${o.selected?' selected':''}>${o.textContent}</option>`).join('');
@@ -4143,7 +3518,7 @@ syncElderUi();
     if($('voiceSel').options.length) h+='<div class="m-row"><label>語音</label><select id="mVoiceSel">'+opts('voiceSel')+'</select></div>';
     h+='<div class="m-row"><label>睡眠定時</label><select id="mSleepSel">'+opts('sleepSel')+'</select></div>';
     h+='<div class="m-row"><label>標示顏色</label><select id="mHlSel">'+opts('hlSel')+'</select></div>';
-    h+='<div class="m-sheet-sec">其他設定</div><div class="m-grid"><button class="m-tile" data-act="sleepbg"><span class="em">🌙</span>睡眠背景播放</button><button class="m-tile" data-act="voicegear"><span class="em">⚙</span>進階設定</button></div>';
+    h+='<div class="m-sheet-sec">雲端語音（需金鑰）</div><div class="m-grid"><button class="m-tile" data-act="voicegear"><span class="em">⚙</span>金鑰設定</button></div>';
     return h;
   }
 
@@ -4154,29 +3529,20 @@ syncElderUi();
       t.onclick=()=>{
         const act=t.dataset.act;
         const acts={
-          elder:()=>{closeSheet();setElderMode(true);},
           open:()=>{closeSheet();click('openBtn');},
           shelf:()=>{closeSheet();click('shelfBtn');},
           toc:()=>{closeSheet();click('tocBtn');},
           search:()=>{closeSheet();click('searchBtn');},
           bm:()=>{click('bmBtn'); openMainMenu();},
-          mark:()=>{closeSheet();setTouchMarkMode(!touchMarkMode);},
-          marks:()=>openMarksSheet(),
-          undo:()=>{undoLastAnnotation();openMainMenu();},
           export:()=>{closeSheet();click('exportBtn');},
           single:()=>{click('viewSingle'); openMainMenu();},
           spread:()=>{click('viewSpread'); openMainMenu();},
-          continuous:()=>{click('viewContinuous');openMainMenu();},
-          'theme-day':()=>{applyReaderTheme('day',true);openMainMenu();},
-          'theme-sepia':()=>{applyReaderTheme('sepia',true);openMainMenu();},
-          'theme-night':()=>{applyReaderTheme('night',true);openMainMenu();},
           zoomin:()=>{click('zoomIn');},
           zoomout:()=>{click('zoomOut');},
           ocr:()=>{closeSheet();click('ocrBtn');},
           reflow:()=>{closeSheet();click('reflowBtn');},
           shape:()=>openShapeMenu(),
           read:()=>{closeSheet();startMobileRead();},
-          sleepbg:()=>{closeSheet();click('sleepBgBtn');},
           voice:()=>openSheet('語音設定',voiceMenuHTML()),
           voicegear:()=>{closeSheet();click('ttsGear');},
           hlcolor:()=>openSheet('語音設定',voiceMenuHTML()),
@@ -4195,10 +3561,7 @@ syncElderUi();
   }
 
   $('mMenuBtn').onclick=openMainMenu;
-  $('mBookmarkBtn').onclick=()=>{
-    if(!docLoaded()){ toast('請先開啟一本書'); return; }
-    toggleBookmark();
-  };
+  $('mSearchBtn').onclick=()=>click('searchBtn');
   // 字級：直接沿用既有的 +/− 邏輯（flow 調字級、PDF 調縮放），並把百分比就地顯示出來
   let fontFlashUntil=0, fontFlashT=0;
   function flashFontPct(){
@@ -4220,7 +3583,7 @@ syncElderUi();
   function updatePlaybar(){
     mPlayToggle.textContent=(reading&&!paused)?'⏸':'▶';
     $('mSpeakerBtn').classList.toggle('on',reading);
-    if(mPlaySub)mPlaySub.textContent=friendlyEngineName(engine);
+    if(mPlaySub){ const es=$('engineSel'); mPlaySub.textContent=(es&&es.selectedOptions[0])?es.selectedOptions[0].textContent:''; }
   }
   // 播放/暫停一律交給原本的朗讀鈕處理：它已包含內建與雲端語音各自的暫停/續播邏輯
   // （手機自行切換 paused 旗標的話，雲端語音的音檔不會真的停下來）
@@ -4244,10 +3607,6 @@ syncElderUi();
     try{
       mTitle.textContent=($('filename').textContent)||'翻頁閱讀器';
       mSlider.max=totalPages||1; mSlider.value=curPage;
-      const bookmarkBtn=$('mBookmarkBtn'), marked=docLoaded()&&bookmarks.has(curPage);
-      bookmarkBtn.classList.toggle('on',marked);
-      bookmarkBtn.title=marked?'取消目前頁面的書籤':'書籤目前頁面';
-      bookmarkBtn.setAttribute('aria-label',bookmarkBtn.title);
       // 剛調整字級時，這一行暫時顯示百分比，別馬上被頁碼蓋掉
       if(Date.now()>fontFlashUntil) mPageInfo.textContent=(docLoaded()? curPage+' / '+(totalPages||'–') : '– / –');
       updatePlaybar();
