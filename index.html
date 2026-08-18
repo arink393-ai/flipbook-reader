@@ -398,11 +398,14 @@
   body.elder-mode .m-grid{grid-template-columns:repeat(2,1fr);gap:12px}
   body.elder-mode .m-sheet-sec{font-size:15px;color:var(--brass-hi);font-weight:800}
 
+  /* 手機／觸控電子書乾淨介面：只要是觸控裝置（body.m-ui）就啟用，不再綁定螢幕寬度，
+     讓 5～10 吋的觸控裝置（含 BOOX 等 Android 電子紙）都用這套直覺介面，而非擠成一團的桌面工具列 */
+  body.m-ui .topbar,body.m-ui .bottombar{display:none}
+  body.m-ui .m-topbar,body.m-ui .m-botbar{display:flex}
+  body.m-ui .stage{inset:48px 0 54px 0}
+  body.m-ui.m-immersive .stage{inset:0}
+
   @media (max-width:640px){
-    body.m-ui .topbar,body.m-ui .bottombar{display:none}
-    body.m-ui .m-topbar,body.m-ui .m-botbar{display:flex}
-    body.m-ui .stage{inset:48px 0 54px 0}
-    body.m-ui.m-immersive .stage{inset:0}
     body.elder-mode .elder-controls{grid-template-columns:repeat(3,minmax(0,1fr));width:100%;border-radius:15px 15px 0 0}
     body.elder-mode .elder-control{height:58px;font-size:12px;flex-direction:row;gap:5px}
     body.elder-mode .elder-control .em{font-size:21px}
@@ -737,7 +740,11 @@ function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}cat
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 viewMode=lsGet('reader_view','spread');
 zoom=parseFloat(lsGet('reader_zoom','1'))||1;
-const IS_MOBILE = window.matchMedia('(max-width:640px)').matches || ('ontouchstart' in window);
+// 乾淨介面的觸發：窄螢幕、或觸控/觸控筆裝置（coarse pointer，含 BOOX 等電子紙）、或有觸控事件。
+// 這樣 5～10 吋的觸控電子書都用直覺的乾淨介面，只有滑鼠＋寬螢幕的桌機才用完整工具列。
+const IS_MOBILE = window.matchMedia('(max-width:1024px)').matches
+               || window.matchMedia('(pointer:coarse)').matches
+               || ('ontouchstart' in window);
 let mUiSync=null, mUiAudio=null;   // 手機介面更新 hook（供 syncControls / updateAudioUI 呼叫）
 if(IS_MOBILE && lsGet('reader_view','')===''){ viewMode='single'; }   // phones default to single page
 let elderMode=lsGet('reader_elder_mode','0')==='1';
@@ -2768,33 +2775,50 @@ async function speakSentence(text,preUrl,tk,s){
       const v = zh ? (pickZhVoice()||builtinVoice)
                    : (builtinVoice||voices.find(x=>/^en/i.test(x.lang)));
       if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; u.pitch=1;
-      let gotBoundary=false,startTime=0,fallbackTimer=null;
+      let gotBoundary=false,startTime=0,fallbackTimer=null,ended=false;
+      let keepAlive=null,watchdog=null;
+      const cleanup=()=>{
+        if(fallbackTimer){clearInterval(fallbackTimer);fallbackTimer=null;}
+        if(keepAlive){clearInterval(keepAlive);keepAlive=null;}
+        if(watchdog){clearTimeout(watchdog);watchdog=null;}
+      };
+      const done=()=>{ if(ended)return; ended=true; cleanup(); res(); };
       u.onboundary=e=>{
         if(!reading||tk!==readToken||!curWords.length)return;
         if(e.name&&e.name!=='word'&&e.name!=='sentence')return;
-        gotBoundary=true;                 // 這個語音有支援逐字回報 → 停用時間估算的備援
+        gotBoundary=true;
         if(fallbackTimer){ clearInterval(fallbackTimer); fallbackTimer=null; }
         setWi(pickByChar(chunk.start+((typeof e.charIndex==='number')?e.charIndex:0)));
       };
       u.onstart=()=>{
         startTime=Date.now();
         if(curWords.length&&reading&&tk===readToken)setWi(pickByChar(chunk.start));
-        // 備援：很多瀏覽器（尤其 iOS Safari）對中文不觸發 onboundary，高亮會卡住不動。
-        // 開唸後短時間內若完全沒收到 boundary，就改用「經過時間 ÷ 估計總長」推進高亮。
         setTimeout(()=>{
-          if(gotBoundary||!reading||tk!==readToken)return;
-          const perChar = zh ? (0.28/Math.max(0.5,rate)) : (0.09/Math.max(0.5,rate));  // 每字概估秒數（隨語速調整）
+          if(gotBoundary||ended||!reading||tk!==readToken)return;
+          const perChar = zh ? (0.28/Math.max(0.5,rate)) : (0.09/Math.max(0.5,rate));
           const estTotal = Math.max(0.6, chunk.text.length*perChar);
           fallbackTimer=setInterval(()=>{
-            if(gotBoundary||!reading||tk!==readToken){ clearInterval(fallbackTimer); fallbackTimer=null; return; }
+            if(gotBoundary||ended||!reading||tk!==readToken){ clearInterval(fallbackTimer); fallbackTimer=null; return; }
             const elapsed=(Date.now()-startTime)/1000;
             const p=Math.max(0,Math.min(1,elapsed/estTotal));
             setWi(pickByChar(chunk.start+Math.floor(p*chunk.text.length)));
           },80);
         }, 350);
       };
-      const done=()=>{ if(fallbackTimer){clearInterval(fallbackTimer);fallbackTimer=null;} res(); };
-      u.onend=done; u.onerror=done; synth.speak(u);
+      u.onend=done; u.onerror=done;
+      // Chrome/Android 的 speechSynthesis 有個惡名昭彰的 bug：唸約 15 秒後會自己暫停、
+      // 且有時 onend 不觸發，導致「唸一句就不動了」。用定時 pause→resume 保活。
+      keepAlive=setInterval(()=>{
+        if(ended){ clearInterval(keepAlive); keepAlive=null; return; }
+        try{ if(synth.speaking){ synth.pause(); synth.resume(); } }catch(e){}
+      },10000);
+      // 看門狗：萬一這段語音的 onend/onerror 都沒觸發（某些 Android WebView 會這樣），
+      // 依文字長度估一個上限，超時就當它唸完，繼續下一句，避免整個朗讀卡死。
+      const perCharW = zh ? 0.42 : 0.14;
+      const maxMs = Math.max(4000, chunk.text.length*perCharW*1000/Math.max(0.5,rate) + 4000);
+      watchdog=setTimeout(()=>{ if(!ended){ try{synth.cancel();}catch(e){} done(); } }, maxMs);
+      try{ synth.cancel(); }catch(e){}   // 清掉可能卡住的前一段，避免佇列堆積不動
+      synth.speak(u);
       });
       // 某些系統語音若在同一個 event loop 立刻送下一段會吞掉段首，讓出一拍。
       if(reading&&tk===readToken)await sleep(35);
