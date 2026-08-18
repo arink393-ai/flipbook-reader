@@ -2114,9 +2114,17 @@ function splitBodySpans(items, sep){
       if(nxt){
         const fs=it.fs||nxt.fs||12;
         const sameLine=Math.abs((nxt.top||0)-(it.top||0))<fs*0.6;
-        // 兩個文字區塊緊接在一起（間距小於約 1/5 字高，甚至輕微重疊）——多半是同一個字被拆成兩個技術性區塊，中間不該有空白
+        // 判斷相鄰兩個文字區塊是「同一個字被拆開」還是「真的有空白」。
+        // 同一行上兩個獨立區塊多半是同一個字（真正的空白通常含在區塊自己的文字裡，
+        // 不會落在區塊之間），所以門檻放得寬一點。窄字母（i、l、f、t、標點）與很短的
+        // 碎片，pdf.js 回報的寬度常小於實際筆畫前進量，會把間距高估，因此再加大容許值，
+        // 避免像 inclusive 這種被拆成「i」＋「nclusive」時漏掉開頭那個字母。
         const gap=sameLine?(nxt.left||0)-((it.left||0)+(it.width||0)):Infinity;
-        if(sameLine && gap<fs*0.2 && gap>-fs*0.6){ g=''; noGap=true; }
+        const tail=(it.t||'').replace(/\s+$/,'').slice(-1);
+        const shortFrag=(it.t||'').trim().length<=2;
+        const narrow=/[iIlftrj1.,;:'"’”)\]!|]/.test(tail);
+        const thr=fs*((narrow||shortFrag)?0.55:0.32);
+        if(sameLine && gap<thr && gap>-fs*0.6){ g=''; noGap=true; }
       }
     }
     if(it.t.trim())map.push({sp:it.sp,start,end,noGapAfter:noGap});
@@ -2238,7 +2246,12 @@ function buildSentences(spans, tl){
   }
   return res;
 }
-/* split text into karaoke tokens: English/number words by whitespace, CJK by single character */
+/* split text into karaoke tokens: English/number words as WHOLE words, CJK by single character.
+   \u4F7F\u7528\u700F\u89BD\u5668\u539F\u751F\u7684 Intl.Segmenter\uFF08granularity:'word'\uFF09\u505A\u65B7\u8A5E\u2014\u2014\u9019\u662F\u76EE\u524D\u6700\u6E96\u7684\u9078\u5B57\u65B9\u5F0F\uFF0C
+   \u6703\u628A\u6574\u500B\u82F1\u6587\u55AE\u5B57\uFF08\u542B don't\u3001well-known \u9019\u985E\u6487\u865F\uFF0F\u9023\u5B57\u865F\uFF09\u7576\u6210\u4E00\u500B\u5B8C\u6574\u7684\u8A5E\uFF0C\u4E26\u628A\u6A19\u9EDE\u81EA\u7136\u5206\u958B\uFF0C
+   \u4E0D\u518D\u50CF\u820A\u7248\u7528\u7A7A\u767D\u786C\u5207\u800C\u628A\u958B\u982D\u5B57\u6BCD\u6216\u6A19\u9EDE\u6CBE\u9ECF\u3002\u4E2D\u6587\u4ECD\u7DAD\u6301\u9010\u5B57\u9AD8\u4EAE\uFF0C\u5361\u62C9OK\u6548\u679C\u7167\u820A\u3002 */
+const _wordSeg = (typeof Intl!=='undefined' && Intl.Segmenter)
+  ? new Intl.Segmenter(undefined,{granularity:'word'}) : null;
 function tokenize(txt){
   const out=[];const CJK=/[\u3400-\u9FBF\u3040-\u30FF\uAC00-\uD7A3]/;
   let i=0;
@@ -2246,8 +2259,19 @@ function tokenize(txt){
     const c=txt[i];
     if(/\s/.test(c)){ i++; continue; }
     if(CJK.test(c)){ out.push({s:i,e:i+1}); i++; continue; }
+    // \u4E00\u6BB5\u62C9\u4E01\uFF0F\u6578\u5B57\uFF0F\u6A19\u9EDE\uFF1A\u5F9E i \u5230\u4E0B\u4E00\u500B\u7A7A\u767D\u6216\u4E2D\u65E5\u97D3\u5B57
     let j=i; while(j<txt.length && !/\s/.test(txt[j]) && !CJK.test(txt[j])) j++;
-    out.push({s:i,e:j}); i=j;
+    const run=txt.slice(i,j);
+    if(_wordSeg){
+      let hit=false;
+      for(const seg of _wordSeg.segment(run)){
+        if(seg.isWordLike){ out.push({s:i+seg.index, e:i+seg.index+seg.segment.length}); hit=true; }
+      }
+      if(!hit) out.push({s:i,e:j});   // \u7D14\u6A19\u9EDE\uFF08\u6C92\u6709\u4EFB\u4F55\u8A5E\uFF09\u4E5F\u4FDD\u7559\uFF0C\u9AD8\u4EAE\u624D\u4E0D\u6703\u5361\u4F4F
+    } else {
+      out.push({s:i,e:j});            // \u820A\u700F\u89BD\u5668\u9000\u56DE\u539F\u672C\u4EE5\u7A7A\u767D\u5207\u7684\u65B9\u5F0F
+    }
+    i=j;
   }
   return out;
 }
