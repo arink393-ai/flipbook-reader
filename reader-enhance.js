@@ -196,4 +196,48 @@
     function init(){ mkBtn(); if(enabled) enable(); }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
   })();
+
+  /* ---------- 4) 背景／鎖屏播放：MediaSession ----------
+   * 讓手機系統知道「正在播放朗讀」，因而：
+   *   - 鎖屏／控制中心顯示播放控制（播放／暫停／停止）
+   *   - 系統維持音訊工作階段，切到背景或鎖屏時較不會被中止（大幅提高續播成功率）
+   * 只對「真正的音檔」引擎有效（手機自然語音／雲端語音）；裝置內建語音（Web Speech）
+   * 在 iOS 背景／鎖屏一定會停，這是平台限制，本外掛無法突破——會在狀態列提示改用音檔引擎。
+   * 全部用讀取全域狀態＋驅動現有按鈕的方式，不改主程式。 */
+  (function(){
+    if(!('mediaSession' in navigator)) return;
+    const ms=navigator.mediaSession;
+    // 直接讀取主程式的全域朗讀狀態；若未定義（版本改名）則安靜退出，不影響其他功能
+    const readState=()=>{ try{ return {reading:reading, paused:paused}; }catch(e){ return null; } };
+    const call=name=>{ try{ if(typeof window[name]==='function'){ window[name](); return true; } }catch(e){} return false; };
+    const clickId=id=>{ const el=document.getElementById(id); if(el){ el.click(); return true; } return false; };
+
+    function bookTitle(){
+      const f=document.getElementById('filename'); const t=(f&&f.textContent||'').trim();
+      const m=document.getElementById('mTitle'); const mt=(m&&m.textContent||'').trim();
+      return t || mt || document.title || '翻頁閱讀器';
+    }
+    let curTitle='';
+    function ensureMeta(){
+      const t=bookTitle();
+      if(t===curTitle) return;
+      try{ if(typeof MediaMetadata!=='undefined'){ ms.metadata=new MediaMetadata({title:t, artist:'朗讀中', album:'翻頁閱讀器'}); curTitle=t; } }catch(e){}
+    }
+
+    // 鎖屏／控制中心的動作 → 驅動主程式既有控制
+    const H=(name,fn)=>{ try{ ms.setActionHandler(name,fn); }catch(e){} };
+    H('play',  ()=>{ if(!call('startReading')) clickId('playBtn')||clickId('mPlayToggle'); });   // startReading 本身即切換播放／續播
+    H('pause', ()=>{ if(!call('startReading')) clickId('playBtn')||clickId('mPlayToggle'); });   // 播放中再呼叫一次即暫停
+    H('stop',  ()=>{ if(!call('stopReading')) clickId('stopBtn')||clickId('mPlayStop'); });
+
+    // 依主程式的朗讀狀態同步系統播放狀態
+    let last='';
+    setInterval(()=>{
+      const s=readState();
+      if(!s || typeof s.reading!=='boolean'){ return; }   // 主程式變數名若改變則安靜退出
+      let st = s.reading ? (s.paused ? 'paused' : 'playing') : 'none';
+      if(st!=='none') ensureMeta();
+      if(st!==last){ try{ ms.playbackState=st; }catch(e){} last=st; }
+    }, 700);
+  })();
 })();
