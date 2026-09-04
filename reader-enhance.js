@@ -240,4 +240,42 @@
       if(st!==last){ try{ ms.playbackState=st; }catch(e){} last=st; }
     }, 700);
   })();
+
+  /* ---------- 5) 一鍵「背景朗讀」：連續音軌，切 App／鎖屏都不停 ----------
+   * 一般朗讀是「一句一句」播；手機切到背景時 JS 會被系統凍結，句與句、翻頁之間就會斷。
+   * 這顆按鈕改走 App 內建、已驗證的作法：把接下來的內容一次做成「一整條連續音檔」再播放，
+   * 因為是單一音軌、句子間不需要 JS，所以退出到桌面、切換 App、鎖屏都能持續播放。
+   * 直接呼叫主程式的 startSleepBackground()，只是免去「先手動選分鐘數」的步驟。
+   * 需要「手機自然語音」；若尚未設定，主程式會自動切到該引擎並開啟設定引導。 */
+  (function(){
+    let btn=null;
+    const bgOn=()=>{ try{ return !!backgroundSleep; }catch(e){ return false; } };
+    function start(){
+      // 沒有連續音軌能力（未設定手機語音 Worker）時，startSleepBackground 會自行引導設定
+      const sel=document.getElementById('sleepSel');
+      if(sel){ const v=parseInt(sel.value,10); if(!(v>=5&&v<=60)) sel.value='30'; }  // 預設一次準備約 30 分鐘
+      try{
+        if(typeof window.startSleepBackground==='function') window.startSleepBackground();
+        else if(typeof startSleepBackground==='function') startSleepBackground();
+      }catch(e){}
+    }
+    function mkBtn(){
+      const st=document.createElement('style');
+      st.textContent='#bgReadToggle{position:fixed;left:10px;top:calc(102px + env(safe-area-inset-top,0px));z-index:43;'
+        +'font:600 13px/1 var(--font,system-ui,sans-serif);padding:8px 11px;border-radius:999px;'
+        +'border:1px solid rgba(120,180,240,.5);background:rgba(28,32,38,.72);color:#bcd6f5;cursor:pointer;'
+        +'-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);box-shadow:0 2px 8px rgba(0,0,0,.3);'
+        +'-webkit-user-select:none;user-select:none;touch-action:manipulation;opacity:.9}'
+        +'#bgReadToggle:hover{opacity:1}'
+        +'#bgReadToggle.on{background:rgba(120,180,240,.95);color:#10151c;border-color:rgba(120,180,240,.95);opacity:1}';
+      document.head.appendChild(st);
+      btn=document.createElement('button');
+      btn.id='bgReadToggle'; btn.type='button'; btn.textContent='🎧 背景';
+      btn.title='一鍵背景朗讀：把接下來的內容做成連續音檔，切換 App／鎖屏也不停（需用「手機自然語音」）';
+      btn.addEventListener('click', start);
+      document.body.appendChild(btn);
+      setInterval(()=>{ try{ btn.classList.toggle('on', bgOn()); btn.textContent=bgOn()?'🎧 背景中':'🎧 背景'; }catch(e){} }, 700);
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mkBtn); else mkBtn();
+  })();
 })();
