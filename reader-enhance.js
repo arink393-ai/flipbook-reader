@@ -93,4 +93,107 @@
       return out;
     };
   }
+
+  /* ---------- 3) 簡體 → 繁體（可開關、狀態記憶、翻頁自動套用） ----------
+   * 用 OpenCC（業界標準，詞彙級：頭髮／裡面／乾燥／麵條 這類上下文字才會正確）。
+   * 只在按下開關後才延遲載入字典（約 1MB，之後瀏覽器會快取）。
+   * 用 MutationObserver「只監看新增節點」來轉換，避免改字造成無限迴圈；
+   * 簡→繁是「字數 1:1」，因此不會破壞逐字高亮的位移。
+   * 註：PDF 一般模式的頁面是圖片（canvas），轉換會套在其上的文字層——
+   *     朗讀／選字／查詞會變繁體；要「看到」繁體請切「重排模式」（文字才是可見的）。 */
+  (function(){
+    const LS='reader_s2t_on';
+    let enabled=false; try{ enabled=localStorage.getItem(LS)==='1'; }catch(e){}
+    let convert=null, loading=null, observer=null, btn=null;
+    const origMap=new WeakMap();
+    const HAN=/[㐀-鿿豈-﫿]/;   // 中日韓統一表意文字（含相容區）
+
+    function loadOpenCC(){
+      if(convert) return Promise.resolve(convert);
+      if(loading) return loading;
+      loading=new Promise((res,rej)=>{
+        if(window.OpenCC) return res();
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js';
+        s.onload=()=>res(); s.onerror=()=>rej(new Error('opencc load failed'));
+        document.head.appendChild(s);
+      }).then(()=>{ convert=window.OpenCC.Converter({from:'cn',to:'tw'}); return convert; });
+      return loading;
+    }
+    function toast(m){ try{ if(typeof window.toast==='function'){window.toast(m);return;} }catch(e){} }
+
+    function convertNode(n){
+      if(!convert||!n||!n.nodeValue||!HAN.test(n.nodeValue)) return;
+      if(!origMap.has(n)) origMap.set(n,n.nodeValue);
+      const t=convert(n.nodeValue);
+      if(t!==n.nodeValue) n.nodeValue=t;
+    }
+    function convertTree(root){
+      if(!root||!root.querySelectorAll) { if(root&&root.nodeType===3)convertNode(root); return; }
+      const layers = root.classList&&root.classList.contains('textLayer') ? [root] : root.querySelectorAll('.textLayer');
+      layers.forEach(tl=>{
+        const w=document.createTreeWalker(tl,NodeFilter.SHOW_TEXT,null); let n;
+        while(n=w.nextNode()) convertNode(n);
+      });
+    }
+    function convertAllVisible(){ document.querySelectorAll('.textLayer').forEach(convertTree); }
+    function revertVisible(){
+      document.querySelectorAll('.textLayer').forEach(tl=>{
+        const w=document.createTreeWalker(tl,NodeFilter.SHOW_TEXT,null); let n;
+        while(n=w.nextNode()){ if(origMap.has(n)) n.nodeValue=origMap.get(n); }
+      });
+    }
+    function startObserver(){
+      if(observer) return;
+      const book=document.getElementById('book')||document.body;
+      observer=new MutationObserver(recs=>{
+        if(!convert) return;
+        for(const r of recs){
+          r.addedNodes && r.addedNodes.forEach(node=>{
+            if(node.nodeType===3){ const tl=node.parentElement&&node.parentElement.closest&&node.parentElement.closest('.textLayer'); if(tl)convertNode(node); }
+            else if(node.nodeType===1){
+              if(node.closest && node.closest('.textLayer')) convertTree(node);
+              else convertTree(node);   // node 可能自身或子孫含 .textLayer
+            }
+          });
+        }
+      });
+      observer.observe(book,{childList:true,subtree:true});
+    }
+    function stopObserver(){ if(observer){ observer.disconnect(); observer=null; } }
+
+    async function enable(){
+      enabled=true; try{localStorage.setItem(LS,'1');}catch(e){} updateBtn();
+      try{ await loadOpenCC(); }
+      catch(e){ toast('簡繁轉換元件載入失敗，請確認網路連線'); enabled=false; try{localStorage.setItem(LS,'0');}catch(_){} updateBtn(); return; }
+      if(!enabled){ updateBtn(); return; }
+      convertAllVisible(); startObserver();
+    }
+    function disable(){
+      enabled=false; try{localStorage.setItem(LS,'0');}catch(e){} updateBtn();
+      stopObserver(); revertVisible();
+    }
+
+    function updateBtn(){ if(!btn)return; btn.classList.toggle('on',enabled);
+      btn.setAttribute('aria-pressed',enabled?'true':'false');
+      btn.title=enabled?'簡體→繁體：開啟中（點按關閉）':'把簡體字轉成繁體（點按開啟）'; }
+    function mkBtn(){
+      const st=document.createElement('style');
+      st.textContent='#s2tToggle{position:fixed;left:10px;top:calc(58px + env(safe-area-inset-top,0px));z-index:43;'
+        +'font:600 13px/1 var(--font,system-ui,sans-serif);padding:8px 11px;border-radius:999px;'
+        +'border:1px solid rgba(214,161,74,.55);background:rgba(28,32,38,.72);color:#e8c98f;cursor:pointer;'
+        +'-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);box-shadow:0 2px 8px rgba(0,0,0,.3);'
+        +'-webkit-user-select:none;user-select:none;touch-action:manipulation;opacity:.9}'
+        +'#s2tToggle:hover{opacity:1}'
+        +'#s2tToggle.on{background:rgba(214,161,74,.95);color:#20242b;border-color:rgba(214,161,74,.95);opacity:1}';
+      document.head.appendChild(st);
+      btn=document.createElement('button');
+      btn.id='s2tToggle'; btn.type='button'; btn.textContent='簡→繁';
+      btn.addEventListener('click',()=>{ enabled?disable():enable(); });
+      document.body.appendChild(btn);
+      updateBtn();
+    }
+    function init(){ mkBtn(); if(enabled) enable(); }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
 })();
