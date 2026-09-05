@@ -250,7 +250,21 @@
   (function(){
     let btn=null;
     const bgOn=()=>{ try{ return !!backgroundSleep; }catch(e){ return false; } };
+    // 偵測「iOS 且從主畫面 App 圖示開啟（獨立視窗模式）」——這種情況 iOS 會在切換 App 時
+    // 把整個網頁 App 凍結，聲音一定停，任何網頁程式都無法突破；需改用 Safari 分頁才行。
+    const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+                  (/Mac/.test(navigator.platform) && navigator.maxTouchPoints>1);
+    const standalone = (window.navigator.standalone===true) ||
+                       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    const iosStandalone = isIOS && standalone;
+    function toast(m){ try{ if(typeof window.toast==='function'){ window.toast(m); return true; } }catch(e){} return false; }
     function start(){
+      if(iosStandalone){
+        // 直接告知限制，別讓使用者以為按鈕壞了
+        if(!toast('iOS 從「主畫面 App 圖示」開啟時，切到別的 App 會被系統暫停，背景播放無法運作。請改用 Safari 開啟本站再朗讀即可背景播放。'))
+          alert('iOS 從主畫面 App 圖示開啟時無法背景播放。請改用 Safari 瀏覽器開啟本站，並把語音設為「手機自然語音」。');
+        return;
+      }
       // 沒有連續音軌能力（未設定手機語音 Worker）時，startSleepBackground 會自行引導設定
       const sel=document.getElementById('sleepSel');
       if(sel){ const v=parseInt(sel.value,10); if(!(v>=5&&v<=60)) sel.value='30'; }  // 預設一次準備約 30 分鐘
