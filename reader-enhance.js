@@ -292,4 +292,68 @@
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mkBtn); else mkBtn();
   })();
+
+  /* ---------- 6) 內建語音：中英自動用各自最自然的聲音，不用再手動切換 ----------
+   * 主程式對「裝置內建語音」的邏輯是：中文用系統中文聲、英文用「你選的那一個」聲音。
+   * 兩個問題：(a) 預設英文聲是抓「第一個英文聲」，在 Apple 上常是 Albert 這種搞笑聲；
+   * (b) 你為了聽中文去選中文聲後，英文就變成中文聲在念，於是得一直來回手動切換。
+   * 這裡改成：中文永遠用最自然的中文聲(覆寫 pickZhVoice)、英文永遠用最自然的英文聲
+   * (自動修正 builtinVoice)，並排除搞笑/低品質聲，優先 Siri／增強／Samantha／美佳。
+   * 只在「裝置內建語音」時介入；其他引擎本來就會自動切換中英文，不動它。 */
+  (function(){
+    const synth=window.speechSynthesis; if(!synth) return;
+    // 明顯的搞笑／低品質聲（Apple 舊款）——一律淘汰
+    const NOVELTY=/^(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|junior|kathy|organ|ralph|fred|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|pipe organ|princess|bruce|agnes|victoria)\b/i;
+    const GOOD_EN=/\b(samantha|alex|ava|allison|susan|tom|aaron|nicky|daniel|karen|moira|tessa|rishi|fiona|serena|arthur|martha|catherine|gordon|matilda|evan|joelle|nathan|zoe)\b/i;
+    function rank(v, wantZh){
+      const name=v.name||'', lang=v.lang||''; let s=0;
+      if(wantZh){ if(/^zh-TW/i.test(lang))s+=1000; else if(/^zh-HK/i.test(lang))s+=600; else if(/^zh/i.test(lang))s+=500; else return -1; }
+      else { if(/^en-US/i.test(lang))s+=1000; else if(/^en-GB/i.test(lang))s+=850; else if(/^en/i.test(lang))s+=700; else return -1; }
+      if(NOVELTY.test(name)) s-=5000;                                              // 搞笑聲直接出局
+      if(/[（(][^)）]*(中文|英文|English|Chinese|美國|台灣|英國|US|U\.S\.|UK)/i.test(name)) s+=160;  // 新款自然（Siri）家族
+      if(/(enhanced|premium|neural|natural|增強|優質)/i.test(name)) s+=120;
+      if(wantZh){ if(/美佳|美嘉|meijia|tingting|婷婷/i.test(name)) s+=150; }
+      else if(GOOD_EN.test(name)) s+=110;
+      if(v.localService) s+=15;
+      if(v.default) s+=8;
+      return s;
+    }
+    function best(wantZh){
+      const vs=synth.getVoices()||[]; let bv=null,bs=-1;
+      for(const v of vs){ const sc=rank(v,wantZh); if(sc>bs){bs=sc;bv=v;} }
+      return bs>0?bv:null;
+    }
+    const isEng=v=>v&&/^en/i.test(v.lang||'');
+    const isBad=v=>!v||!isEng(v)||NOVELTY.test(v.name||'');   // 空的、非英文、或搞笑聲＝需要修正
+    function curEngine(){ try{ return engine; }catch(e){ return null; } }
+    function fixVoices(){
+      // 中文：永遠回傳最自然的中文聲
+      const bz=best(true);
+      // 英文：只有在目前英文槽不理想時才幫忙換成最自然的英文聲（尊重使用者自選的好聲音）
+      if(curEngine()==='builtin'){
+        try{
+          const bv=(typeof builtinVoice!=='undefined')?builtinVoice:null;
+          if(isBad(bv)){
+            const be=best(false);
+            if(be){
+              builtinVoice=be;                                  // 主程式英文路徑會用到
+              try{ if(typeof voiceSel!=='undefined' && voiceSel){ voiceSel.value=be.voiceURI; } }catch(e){}
+              try{ if(typeof lsSet==='function') lsSet('tts_voice_builtin', be.voiceURI); }catch(e){}
+            }
+          }
+        }catch(e){}
+      }
+      return bz;
+    }
+    // 覆寫全域 pickZhVoice（內建語音的中文路徑、以及「朗讀選取文字」都會用到）
+    if(typeof window.pickZhVoice==='function'){
+      window.pickZhVoice=function(){ try{ return best(true)|| null; }catch(e){ return null; } };
+    }
+    // 聲音清單常延遲載入；用事件＋數次重試把英文槽修好
+    try{ synth.addEventListener('voiceschanged', fixVoices); }catch(e){}
+    let n=0; const iv=setInterval(()=>{ fixVoices(); if(++n>=8) clearInterval(iv); }, 700);
+    // 使用者切換引擎後（例如改回內建語音）再修一次
+    try{ const es=document.getElementById('engineSel'); es && es.addEventListener('change',()=>setTimeout(fixVoices,60)); }catch(e){}
+    fixVoices();
+  })();
 })();
