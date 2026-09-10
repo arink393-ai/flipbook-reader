@@ -356,4 +356,16 @@
     try{ const es=document.getElementById('engineSel'); es && es.addEventListener('change',()=>setTimeout(fixVoices,60)); }catch(e){}
     fixVoices();
   })();
+
+  /* ---------- 7) 修正：手機放大後可拖曳／捲動到整頁（含左半邊） ----------
+   * 主程式的 .scroller 用 justify-content:center 置中，但寬度只鎖在 100%；放大後書比畫面大時，
+   * 左側會溢出到「捲軸到不了的負座標」，於是拖不到左半邊（有名的 flexbox 置中捲動 bug）。
+   * 讓 .scroller 在內容較大時撐到內容寬度（小圖仍置中），溢出就全部捲得到——手機一指滑動即可
+   * 平移到任何區域（一指拖曳不會翻頁；翻頁只在「輕點」左右邊緣時才觸發，兩者不衝突）。 */
+  (function(){
+    const st=document.createElement('style');
+    st.setAttribute('data-reader-enhance','zoom-pan-fix');
+    st.textContent='.scroller:not(.continuous-scroller){width:-webkit-max-content;width:max-content;min-width:100%}';
+    (document.head||document.documentElement).appendChild(st);
+  })();
 })();
