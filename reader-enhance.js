@@ -439,12 +439,23 @@
       out.sort((a,b)=>a.page-b.page);
       const seen=new Set(),fin=[];
       for(const it of out){ if(seen.has(it.page))continue; seen.add(it.page); fin.push(it); }
+      // 自動編號：辨識好目錄後，依閱讀順序給每個章節一個流水號（去掉原本殘缺的章號避免重複）
+      fin.forEach((it,i)=>{ it.title=(i+1)+'. '+String(it.title||'').replace(/^\d+(\.\d+)*[\s.]+/,'').trim(); });
       return fin.length>=3?fin:[];
     }
     window.extractPrintedToc=async function(){
       try{ const r=await improved(); if(r&&r.length>=3) return r; }catch(e){}
       try{ return await orig.apply(this,arguments); }catch(e){ return []; }
     };
+    // 保險：已解析過的目錄會被快取（可能是尚未加編號的舊版）；在取用時補上流水號（若已編號則略過，不會重複）
+    if(typeof window.getOrBuildPrintedToc==='function'){
+      const origGet=window.getOrBuildPrintedToc;
+      window.getOrBuildPrintedToc=async function(){
+        const r=await origGet.apply(this,arguments);
+        try{ if(Array.isArray(r)) r.forEach((it,i)=>{ if(it&&!/^\d+\.\s/.test(String(it.title||''))) it.title=(i+1)+'. '+String(it.title||'').replace(/^\d+(\.\d+)*[\s.]+/,'').trim(); }); }catch(e){}
+        return r;
+      };
+    }
   })();
 
   /* ---------- 9) 朗讀標示改為低飽和度的莫蘭迪柔和色系 ----------
@@ -518,5 +529,18 @@
       }
       return out;
     };
+  })();
+
+  /* ---------- 11) 修正目錄左側被黑條擋住 ----------
+   * 目錄每列的展開箭頭佔位符 class 是「caret empty」，剛好撞到「空白首頁」的 .empty 樣式
+   * （position:absolute + 深色背景 var(--stage)），那塊深色絕對定位方塊就蓋住了每行開頭的字。
+   * 用更高優先權（.caret.empty，兩個 class）把這些有害屬性還原掉即可。 */
+  (function(){
+    const st=document.createElement('style');
+    st.setAttribute('data-reader-enhance','caret-empty-fix');
+    st.textContent='.toc-scroll .caret.empty,.drawer .caret.empty{position:static!important;inset:auto!important;'
+      +'background:transparent!important;z-index:auto!important;overflow:visible!important;'
+      +'width:0!important;flex:0 0 0!important;height:auto!important;padding:0!important;margin:0!important}';
+    (document.head||document.documentElement).appendChild(st);
   })();
 })();
