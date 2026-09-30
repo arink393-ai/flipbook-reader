@@ -368,4 +368,82 @@
     st.textContent='.scroller:not(.continuous-scroller){width:-webkit-max-content;width:max-content;min-width:100%}';
     (document.head||document.documentElement).appendChild(st);
   })();
+
+  /* ---------- 8) 更會解析「印刷目錄頁」的章節（掃描書／無書籤 PDF） ----------
+   * 覆寫主程式的 extractPrintedToc。原版有兩個在掃描書上常見的致命問題：
+   *   a. 目錄頁文字經 clusterPdfItemsIntoLines 以 join('') 合併後，最右邊的頁碼會「黏」在標題
+   *      末尾（例：「An introduction to multimodality14」），而原版正則要求數字前有空白，導致
+   *      整頁一行都對不上 → 目錄全空。
+   *   b. 目錄頁的偵測把「第一行＋最後一行」串起來要求結尾是 Contents，但掃描書那頁最後一行常是
+   *      頁碼（vii），於是連目錄頁都找不到。
+   * 本版：容忍黏住的頁碼、用「前兩行是否為 Contents/目錄」判斷目錄頁，並改用「目錄頁碼＋自動推算
+   * 的偏移量」定位（偏移量取眾數，最穩），內文比對僅在與推算值吻合時採用（避免常見詞句誤中）。
+   * 只在「沒有內建書籤」時才會被主程式呼叫；若本版失敗則退回原版，不影響原本正常的 PDF。 */
+  (function(){
+    if(typeof window.extractPrintedToc!=='function') return;
+    const orig=window.extractPrintedToc;
+    const HEAD=/^\s*(table of contents|contents|目錄|目次)\s*$/i;
+    const LINE=/^(.{2,90}?)\s*(\d{1,4})\s*$/;                 // 頁碼可黏在標題後面（無空白）也能匹配
+    const norm=s=>s.toLowerCase().replace(/[^a-z0-9一-鿿]+/g,'');
+    const isHead=L=>L.slice(0,2).some(x=>HEAD.test((x||'').trim()));
+    async function improved(){
+      if(typeof getPageLines!=='function') return [];
+      let total=0; try{ total=totalPages; }catch(e){ return []; }
+      if(!(total>0)) return [];
+      const scanLimit=Math.min(total,120);
+      let start=-1;
+      for(let i=1;i<=scanLimit;i++){ const L=await getPageLines(i); if(isHead(L)&&L.some(x=>LINE.test((x||'').trim()))){ start=i; break; } }
+      if(start<0) return [];
+      const tocPages=[start];
+      for(let i=start+1;i<=scanLimit;i++){ const L=await getPageLines(i); const d=L.filter(x=>LINE.test((x||'').trim())).length/Math.max(1,L.length); if(isHead(L)||d>=0.3) tocPages.push(i); else break; }
+      const raw=[];
+      for(const p of tocPages){ for(const line of await getPageLines(p)){
+        const m=LINE.exec((line||'').trim()); if(!m)continue;
+        let title=m[1].replace(/[.·‧・、_\-\s]+$/,'').trim();
+        title=title.replace(/^(\d+)([A-Za-z一-鿿])/,'$1 $2');   // 章號黏在標題（12Multimodality→12 Multimodality）
+        const num=parseInt(m[2],10);
+        if(!title||!/[a-zA-Z一-鿿]/.test(title))continue;
+        if(isNaN(num)||num<1||num>total)continue;
+        if(HEAD.test(title))continue;
+        raw.push({title,stated:num});
+      } }
+      if(raw.length<3) return [];
+      const bodyStart=tocPages[tocPages.length-1]+1;
+      const searchTo=Math.min(total,bodyStart+400);
+      async function findFrom(title,from,to){
+        const t=norm(title.replace(/^\d+(\.\d+)*\s*/,'')); if(t.length<8)return null;
+        for(let i=from;i<=to;i++){ const w=norm((await getPageLines(i)).join(' ')); if(w.includes(t))return i; }
+        return null;
+      }
+      // 逐項比對內文求錨點；一旦偏移量有 3 個以上一致就鎖定，之後只在推算位置附近微調（省時）
+      const cnt={}; let offset=null;
+      const pick=()=>{ let o=null,b=0; for(const k in cnt){ if(cnt[k]>b){b=cnt[k];o=+k;} } return b>=3?o:null; };
+      for(const e of raw){
+        if(offset==null){
+          try{ e.found=await findFrom(e.title,bodyStart,searchTo); }catch(_){ e.found=null; }
+          if(e.found){ const o=e.found-e.stated; cnt[o]=(cnt[o]||0)+1; offset=pick(); }
+        }else{
+          const model=e.stated+offset;
+          try{ e.found=await findFrom(e.title,Math.max(bodyStart,model-4),Math.min(searchTo,model+4)); }catch(_){ e.found=null; }
+        }
+      }
+      const out=[];
+      for(const e of raw){
+        let page;
+        if(offset!=null){ const model=e.stated+offset; page=(e.found&&Math.abs(e.found-model)<=3)?e.found:model; }
+        else { page=e.found||null; }
+        if(!page)continue;
+        page=Math.max(1,Math.min(total,page));
+        out.push({title:e.title,page,level:0});
+      }
+      out.sort((a,b)=>a.page-b.page);
+      const seen=new Set(),fin=[];
+      for(const it of out){ if(seen.has(it.page))continue; seen.add(it.page); fin.push(it); }
+      return fin.length>=3?fin:[];
+    }
+    window.extractPrintedToc=async function(){
+      try{ const r=await improved(); if(r&&r.length>=3) return r; }catch(e){}
+      try{ return await orig.apply(this,arguments); }catch(e){ return []; }
+    };
+  })();
 })();
