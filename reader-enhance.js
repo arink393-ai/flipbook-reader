@@ -53,46 +53,44 @@
     };
   }
 
-  /* ---------- 2b) 幾何合併被拆開的單字（包住全域 wordRanges，只處理它的輸出） ---------- */
-  const origWordRanges=window.wordRanges;
-  if(typeof origWordRanges==='function'){
-    const latinEnd=/[A-Za-z0-9]$/, latinStart=/^[A-Za-z0-9]/;
-    const lastRect=(node,pos,end)=>{
-      try{
-        const r=document.createRange(); r.setStart(node,pos); r.setEnd(node,end);
-        const rs=r.getClientRects(); return (rs&&rs.length)?rs[rs.length-1]:null;
-      }catch(e){ return null; }
-    };
+  /* ---------- 2b) 重寫 wordRanges：片段邊界一律視為斷詞邊界 ----------
+   * 逐字高亮偶爾一次框住 2~4 個字（例如「volume demonstrate」），原因是主程式的
+   * splitBodySpans 會把相鄰兩個字片段標記為 joinNext（誤判成同一個字，因 pdf.js 對每個字用
+   * transform:scaleX 縮放、字距判斷在兩端對齊掃描書上失準）；重建文字時中間就少了空白，
+   * 「volumedemonstrate」被 Segmenter 當成一個字 → 高亮跨兩字。
+   * 這裡重寫 wordRanges：相鄰片段之間「一律」補一個空白，相鄰單字就絕不會被黏成同一個 token。
+   * 最壞情況只是「真的被拆開的字」變成兩個 token（各自仍會被高亮），遠比黏成一團好。 */
+  (function(){
+    if(typeof window.wordRanges!=='function') return;
+    const orig=window.wordRanges;
     window.wordRanges=function(parts){
-      let words;
-      try{ words=origWordRanges.call(this,parts); }catch(e){ return origWordRanges(parts); }
-      if(!Array.isArray(words) || words.length<2) return words;
-      const out=[words[0]];
-      for(let k=1;k<words.length;k++){
-        const b=words[k], a=out[out.length-1];
-        let merged=false;
-        // 只在「跨不同文字節點、兩端都是字母/數字」時才考慮合併——真正含空白的相鄰詞不會落在這裡
-        if(a && b && a.endNode!==b.startNode && latinEnd.test(a.text||'') && latinStart.test(b.text||'')){
-          const ra=lastRect(a.endNode, Math.max(0,a.endPos-1), a.endPos);
-          const rb=lastRect(b.startNode, b.startPos, b.startPos+1);
-          if(ra && rb){
-            const h=ra.height||rb.height||12;
-            const sameLine=Math.abs(ra.top-rb.top) < h*0.6;
-            const gap=rb.left-ra.right;
-            // 同一個字被拆開時，兩塊在畫面上幾乎相貼（gap≈0）；真正的字間空白會明顯較大，不會被合併
-            if(sameLine && gap < h*0.28 && gap > -h*0.8){
-              a.endNode=b.endNode; a.endPos=b.endPos;
-              a.text=(a.text||'')+(b.text||'');   // 直接串接（無空白）＝真正完整的單字
-              a.charEnd=b.charEnd;
-              merged=true;
-            }
-          }
-        }
-        if(!merged) out.push(b);
-      }
-      return out;
+      try{
+        if(!parts||!parts.length) return [];
+        let full=''; const map=[];
+        parts.forEach((p,idx)=>{
+          const node=p&&p.span&&p.span.firstChild;
+          if(!node||node.nodeType!==3) return;
+          const whole=node.nodeValue||'';
+          const so=Math.max(0,Math.min(whole.length,p.so)), eo=Math.max(so,Math.min(whole.length,p.eo));
+          for(let k=so;k<eo;k++) map.push({node,pos:k,span:p.span});
+          full+=whole.slice(so,eo);
+          if(idx<parts.length-1){ full+=' '; map.push(null); }   // 一律以空白分隔片段
+        });
+        const toks=(typeof window.tokenize==='function')?window.tokenize(full):[];
+        const words=[];
+        toks.forEach(t=>{
+          if(t.s>=map.length) return;
+          const endIdx=Math.min(t.e,map.length)-1;
+          if(endIdx<t.s) return;
+          const si=map[t.s], ei=map[endIdx];
+          if(!si||!ei) return;
+          words.push({startNode:si.node,startPos:si.pos,endNode:ei.node,endPos:ei.pos+1,
+            span:si.span,text:full.slice(t.s,t.e),charStart:t.s,charEnd:t.e});
+        });
+        return words;
+      }catch(e){ try{ return orig.call(this,parts); }catch(_){ return []; } }
     };
-  }
+  })();
 
   /* ---------- 3) 簡體 → 繁體（可開關、狀態記憶、翻頁自動套用） ----------
    * 用 OpenCC（業界標準，詞彙級：頭髮／裡面／乾燥／麵條 這類上下文字才會正確）。
