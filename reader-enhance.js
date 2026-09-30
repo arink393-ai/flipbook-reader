@@ -446,4 +446,77 @@
       try{ return await orig.apply(this,arguments); }catch(e){ return []; }
     };
   })();
+
+  /* ---------- 9) 朗讀標示改為低飽和度的莫蘭迪柔和色系 ----------
+   * 取代原本較鮮豔的琥珀／黃／綠…選項，並把「目前單字」的深色標示調得更柔和（降低不透明度），
+   * 讓長時間閱讀更舒服。沿用主程式的 applyHL 機制（覆寫成更溫和的透明度換算），選色選單、
+   * 手機鏡像選單、雲端設定面板都會一起套用。 */
+  (function(){
+    if(typeof window.applyHL!=='function') return;
+    // 莫蘭迪色盤（低飽和、帶灰的柔和色）；value 為底色 rgba，句子/單字的深淺由 applyHL 自動換算
+    const MORANDI=[
+      ['rgba(190,176,150,.42)','標示：燕麥'],
+      ['rgba(191,158,156,.42)','標示：灰玫瑰'],
+      ['rgba(198,164,142,.42)','標示：陶土'],
+      ['rgba(158,173,151,.42)','標示：鼠尾草'],
+      ['rgba(150,169,178,.42)','標示：霧藍'],
+      ['rgba(178,164,182,.42)','標示：藕紫'],
+      ['rgba(176,176,168,.34)','標示：淡灰']
+    ];
+    const DEFAULT=MORANDI[0][0];
+    const values=MORANDI.map(o=>o[0]);
+    // 更柔和的透明度換算：句子淡、目前單字也不要太重
+    window.applyHL=function(c){
+      const root=document.documentElement.style;
+      root.setProperty('--hl',c);
+      const m=/rgba?\(([^)]+)\)/.exec(c);
+      if(!m){ root.setProperty('--hl-line',c); root.setProperty('--hl-word',c); return; }
+      const p=m[1].split(',').map(s=>s.trim()); const r=p[0],g=p[1],b=p[2];
+      const a=p[3]!==undefined?parseFloat(p[3]):0.4;
+      const set=(k,v)=>root.setProperty(k,'rgba('+r+','+g+','+b+','+v.toFixed(2)+')');
+      set('--hl-line',  Math.max(0.10,Math.min(0.20,a*0.42)));   // 句子底色：很淡
+      set('--hl-word',  Math.min(0.55,a+0.14));                  // 目前單字：柔和，不刺眼
+      set('--hl-line-solid', Math.min(0.30,a*0.5+0.08));
+      set('--hl-word-solid', Math.min(0.42,a*0.55+0.12));
+    };
+    function fillSelect(sel){ if(!sel)return; sel.innerHTML=MORANDI.map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join(''); }
+    function apply(){
+      const hlSel=document.getElementById('hlSel');
+      fillSelect(hlSel);
+      // 讀取目前設定；若是舊的鮮豔色（不在莫蘭迪色盤內）則自動遷移到莫蘭迪預設
+      let cur=DEFAULT; try{ if(typeof lsGet==='function') cur=lsGet('reader_hl',DEFAULT); }catch(e){}
+      if(values.indexOf(cur)<0) cur=DEFAULT;
+      try{ if(typeof lsSet==='function') lsSet('reader_hl',cur); }catch(e){}
+      if(hlSel){ hlSel.value=cur; }
+      const mh=document.getElementById('mHlSel'); if(mh){ fillSelect(mh); mh.value=cur; }
+      try{ window.applyHL(cur); }catch(e){}
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply); else apply();
+  })();
+
+  /* ---------- 10) 修正朗讀「跳行／半句標示」：把被切斷的句子片段接回去 ----------
+   * 掃描 PDF 常因 OCR 的字高忽大忽小、或多餘的句號，使一個句子被切成兩段——朗讀時就會
+   * 「跳行」、標示只框到半句（截圖中整段第一行沒被標示就是這樣）。
+   * 正常英文句子一定以大寫／數字／引號開頭；因此凡是「以小寫字母開頭」的片段，幾乎都是被切斷
+   * 的後半段，安全地接回前一句即可。此處只「合併、不再切割」，最壞情況是把兩句連在一起唸，
+   * 遠比把一句切成兩半好。覆寫全域 buildSentences，只後處理其輸出。 */
+  (function(){
+    if(typeof window.buildSentences!=='function') return;
+    const orig=window.buildSentences;
+    const startsLower=t=>{ const s=String(t||'').replace(/^[\s"'“”‘’(\[]+/,''); return /^[a-z]/.test(s); };
+    window.buildSentences=function(spans,tl){
+      let arr; try{ arr=orig.call(this,spans,tl); }catch(e){ try{ return orig.apply(this,arguments); }catch(_){ return []; } }
+      if(!Array.isArray(arr)||arr.length<2) return arr;
+      const out=[arr[0]];
+      for(let i=1;i<arr.length;i++){
+        const s=arr[i], prev=out[out.length-1];
+        if(prev && startsLower(s.text)){
+          prev.text=String(prev.text||'').replace(/\s+$/,'')+' '+String(s.text||'').replace(/^\s+/,'');
+          prev.parts=(prev.parts||[]).concat(s.parts||[]);
+          prev.spans=(prev.spans||[]).concat(s.spans||[]);
+        }else out.push(s);
+      }
+      return out;
+    };
+  })();
 })();
