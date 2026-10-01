@@ -541,4 +541,71 @@
       +'width:0!important;flex:0 0 0!important;height:auto!important;padding:0!important;margin:0!important}';
     (document.head||document.documentElement).appendChild(st);
   })();
+
+  /* ---------- 12) 朗讀標示框補足字尾（每頁自動校正） ----------
+   * 掃描書（archive.org 等）的 OCR 文字層，記錄的字寬常比實際字形短一點（實測右側約短 0.2~0.3 個字高），
+   * 標示框就會切掉最後一個字母，放大後特別明顯。這裡覆寫 paintRange：每頁第一次畫框時，讀取該頁
+   * canvas 像素，量出「字形實際右緣 − 文字層右緣」的中位數，之後畫的每個框都依此往右補（左側同理）。
+   * 原生電子書 PDF 幾乎沒有偏差 → 補償自動接近 0；EPUB/Word（文字本身就是畫面）不補償。 */
+  (function(){
+    if(typeof window.paintRange!=='function') return;
+    const DEF={r:0.22,l:0.02};                       // 校正失敗時的保守預設
+    function calibrate(leaf){
+      const cv=leaf.querySelector('canvas'); const tl=leaf.querySelector('.textLayer');
+      if(!cv||!tl||tl.classList.contains('flowtext')) return {r:0,l:0,done:true};
+      const cvr=cv.getBoundingClientRect(); if(!cvr.width||!cv.width) return null;
+      let data; try{ data=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,cv.width,cv.height).data; }catch(e){ return {r:DEF.r,l:DEF.l,done:true}; }
+      const CW=cv.width, CH=cv.height, sx=CW/cvr.width, sy=CH/cvr.height;
+      const dark=(x,y)=>{ const i=(y*CW+x)*4; return (0.3*data[i]+0.59*data[i+1]+0.11*data[i+2])<120; };
+      const col=(x,y0,y1)=>{ for(let y=y0;y<=y1;y++) if(dark(x,y)) return true; return false; };
+      const spans=[...tl.querySelectorAll('span')].filter(s=>/^[A-Za-zÀ-ɏ]{3,}[.,;:)!?’'"]?$/.test((s.textContent||'').trim()));
+      const step=Math.max(1,Math.floor(spans.length/60)); const R=[],L=[];
+      for(let i=0;i<spans.length;i+=step){
+        const r=spans[i].getBoundingClientRect(); const h=r.height; if(r.width<6||h<4) continue;
+        const yMid=Math.floor(((r.top+r.bottom)/2-cvr.top)*sy);
+        const y0=Math.max(0,yMid-Math.floor(h*0.3*sy)), y1=Math.min(CH-1,yMid+Math.floor(h*0.3*sy));
+        const xL=Math.floor((r.left-cvr.left)*sx), xR=Math.floor((r.right-cvr.left)*sx), gap=Math.max(1,Math.round(h*0.3*sx));
+        let last=-1; for(let x=Math.max(0,xR-Math.round(h*0.5*sx)); x<Math.min(CW,xR+Math.round(h*sx)); x++){ if(col(x,y0,y1)) last=x; else if(last>=0&&x>xR&&x-last>gap) break; }
+        let first=-1; for(let x=Math.min(CW-1,xL+Math.round(h*0.5*sx)); x>Math.max(0,xL-Math.round(h*sx)); x--){ if(col(x,y0,y1)) first=x; else if(first>=0&&x<xL&&first-x>gap) break; }
+        if(last>=0) R.push(((cvr.left+last/sx)-r.right)/h);
+        if(first>=0) L.push((r.left-(cvr.left+first/sx))/h);
+      }
+      if(R.length<8) return null;                    // canvas 可能還沒畫好 → 之後再試
+      const med=a=>{ a=a.slice().sort((x,y)=>x-y); return a[Math.floor(a.length/2)]; };
+      const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+      return {r:clamp(med(R)+0.07,0,0.45), l:clamp((L.length?med(L):0)+0.02,0,0.15), done:true};
+    }
+    function padFor(leaf){
+      let p=leaf.__hlPad;
+      if(p&&p.done) return p;
+      const tries=(leaf.__hlTries||0); if(tries>=4) return (leaf.__hlPad={r:DEF.r,l:DEF.l,done:true});
+      leaf.__hlTries=tries+1;
+      const c=calibrate(leaf);
+      if(c){ leaf.__hlPad=c; return c; }
+      return DEF;
+    }
+    window.paintRange=function(range,cls){
+      if(!range) return;
+      const node=range.startContainer; const el=node&&node.nodeType===3?node.parentElement:node;
+      const leaf=el&&el.closest?el.closest('.leaf'):null;
+      if(!leaf||typeof overlayFor!=='function') return;
+      const ov=overlayFor(leaf); if(!ov) return;
+      const lr=leaf.getBoundingClientRect(); const pad=padFor(leaf);
+      let rects; try{ rects=[...range.getClientRects()]; }catch(e){ return; }
+      ov.__last=ov.__last||{};
+      rects.forEach(r=>{
+        if(r.width<=0||r.height<=0) return;
+        const h=r.height, left=r.left-pad.l*h-lr.left, top=r.top-lr.top, width=r.width+(pad.l+pad.r)*h;
+        // 字距很緊時，前一個框的補償可能壓到這個字開頭 → 把前一個框截到這個框的起點，避免重疊變深
+        const prev=ov.__last[cls];
+        if(prev&&prev.isConnected&&Math.abs(prev.__top-top)<h*0.5&&prev.__left<left&&prev.__left+prev.__w>left){
+          prev.__w=Math.max(1,left-prev.__left-0.5); prev.style.width=prev.__w+'px';
+        }
+        const d=document.createElement('div'); d.className='hl-rect '+cls;
+        d.style.left=left+'px'; d.style.top=top+'px'; d.style.width=width+'px'; d.style.height=h+'px';
+        d.__left=left; d.__top=top; d.__w=width;
+        ov.appendChild(d); ov.__last[cls]=d;
+      });
+    };
+  })();
 })();
