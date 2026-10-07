@@ -15,6 +15,7 @@
 
   /* ---------- 1) PWA <head> 標籤 ---------- */
   function injectPWA(){
+    if(location.protocol==='file:')return; // Standalone HTML has no relative manifest/icon assets.
     const head=document.head||document.getElementsByTagName('head')[0];
     if(!head)return;
     const add=(sel,make)=>{ if(!head.querySelector(sel)) head.appendChild(make()); };
@@ -68,11 +69,14 @@
         if(!parts||!parts.length) return [];
         let full=''; const map=[];
         parts.forEach((p,idx)=>{
-          const node=p&&p.span&&p.span.firstChild;
-          if(!node||node.nodeType!==3) return;
-          const whole=node.nodeValue||'';
+          if(!p?.span)return;
+          const whole=p.span.textContent||'';
           const so=Math.max(0,Math.min(whole.length,p.so)), eo=Math.max(so,Math.min(whole.length,p.eo));
-          for(let k=so;k<eo;k++) map.push({node,pos:k,span:p.span});
+          const walker=document.createTreeWalker(p.span,NodeFilter.SHOW_TEXT);let node,offset=0;
+          while(node=walker.nextNode()){
+            for(let k=0;k<node.nodeValue.length;k++)if(offset+k>=so&&offset+k<eo)map.push({node,pos:k,span:p.span});
+            offset+=node.nodeValue.length;
+          }
           full+=whole.slice(so,eo);
           if(idx<parts.length-1){ full+=' '; map.push(null); }   // 一律以空白分隔片段
         });
@@ -218,14 +222,14 @@
     let curTitle='';
     function ensureMeta(){
       const t=bookTitle();
-      if(t===curTitle) return;
+      if(t===curTitle&&ms.metadata?.title===t) return;
       try{ if(typeof MediaMetadata!=='undefined'){ ms.metadata=new MediaMetadata({title:t, artist:'朗讀中', album:'翻頁閱讀器'}); curTitle=t; } }catch(e){}
     }
 
     // 鎖屏／控制中心的動作 → 驅動主程式既有控制
     const H=(name,fn)=>{ try{ ms.setActionHandler(name,fn); }catch(e){} };
-    H('play',  ()=>{ if(!call('startReading')) clickId('playBtn')||clickId('mPlayToggle'); });   // startReading 本身即切換播放／續播
-    H('pause', ()=>{ if(!call('startReading')) clickId('playBtn')||clickId('mPlayToggle'); });   // 播放中再呼叫一次即暫停
+    H('play',()=>call('resumeReading'));
+    H('pause',()=>call('pauseReading'));
     H('stop',  ()=>{ if(!call('stopReading')) clickId('stopBtn')||clickId('mPlayStop'); });
 
     // 依主程式的朗讀狀態同步系統播放狀態
@@ -259,9 +263,9 @@
     function start(){
       if(iosStandalone){
         // 直接告知限制，別讓使用者以為按鈕壞了
-        if(!toast('iOS 從「主畫面 App 圖示」開啟時，切到別的 App 會被系統暫停，背景播放無法運作。請改用 Safari 開啟本站再朗讀即可背景播放。'))
-          alert('iOS 從主畫面 App 圖示開啟時無法背景播放。請改用 Safari 瀏覽器開啟本站，並把語音設為「手機自然語音」。');
-        return;
+        if(!toast('主畫面模式的背景播放可能受系統限制；若鎖屏會停，請改用 Safari 分頁開啟。'))
+          alert('主畫面模式的背景播放可能受系統限制；若鎖屏會停，請改用 Safari 分頁開啟。');
+        // Still allow playback: platform behavior varies by OS version. Never promise background continuity.
       }
       // 沒有連續音軌能力（未設定手機語音 Worker）時，startSleepBackground 會自行引導設定
       const sel=document.getElementById('sleepSel');
@@ -278,6 +282,8 @@
         +'border:1px solid rgba(120,180,240,.5);background:rgba(28,32,38,.72);color:#bcd6f5;cursor:pointer;'
         +'-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);box-shadow:0 2px 8px rgba(0,0,0,.3);'
         +'-webkit-user-select:none;user-select:none;touch-action:manipulation;opacity:.9}'
+        +'body:not(.has-doc) #bgReadToggle,body.home-open #bgReadToggle,body.elder-mode #bgReadToggle{display:none}'
+        +'body:not(.has-doc) #s2tToggle,body.home-open #s2tToggle,body.elder-mode #s2tToggle{display:none}'
         +'#bgReadToggle:hover{opacity:1}'
         +'#bgReadToggle.on{background:rgba(120,180,240,.95);color:#10151c;border-color:rgba(120,180,240,.95);opacity:1}';
       document.head.appendChild(st);
@@ -291,70 +297,7 @@
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mkBtn); else mkBtn();
   })();
 
-  /* ---------- 6) 內建語音：中英自動用各自最自然的聲音，不用再手動切換 ----------
-   * 主程式對「裝置內建語音」的邏輯是：中文用系統中文聲、英文用「你選的那一個」聲音。
-   * 兩個問題：(a) 預設英文聲是抓「第一個英文聲」，在 Apple 上常是 Albert 這種搞笑聲；
-   * (b) 你為了聽中文去選中文聲後，英文就變成中文聲在念，於是得一直來回手動切換。
-   * 這裡改成：中文永遠用最自然的中文聲(覆寫 pickZhVoice)、英文永遠用最自然的英文聲
-   * (自動修正 builtinVoice)，並排除搞笑/低品質聲，優先 Siri／增強／Samantha／美佳。
-   * 只在「裝置內建語音」時介入；其他引擎本來就會自動切換中英文，不動它。 */
-  (function(){
-    const synth=window.speechSynthesis; if(!synth) return;
-    // 明顯的搞笑／低品質聲（Apple 舊款）——一律淘汰
-    const NOVELTY=/^(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|junior|kathy|organ|ralph|fred|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|pipe organ|princess|bruce|agnes|victoria)\b/i;
-    const GOOD_EN=/\b(samantha|alex|ava|allison|susan|tom|aaron|nicky|daniel|karen|moira|tessa|rishi|fiona|serena|arthur|martha|catherine|gordon|matilda|evan|joelle|nathan|zoe)\b/i;
-    function rank(v, wantZh){
-      const name=v.name||'', lang=v.lang||''; let s=0;
-      if(wantZh){ if(/^zh-TW/i.test(lang))s+=1000; else if(/^zh-HK/i.test(lang))s+=600; else if(/^zh/i.test(lang))s+=500; else return -1; }
-      else { if(/^en-US/i.test(lang))s+=1000; else if(/^en-GB/i.test(lang))s+=850; else if(/^en/i.test(lang))s+=700; else return -1; }
-      if(NOVELTY.test(name)) s-=5000;                                              // 搞笑聲直接出局
-      if(/[（(][^)）]*(中文|英文|English|Chinese|美國|台灣|英國|US|U\.S\.|UK)/i.test(name)) s+=160;  // 新款自然（Siri）家族
-      if(/(enhanced|premium|neural|natural|增強|優質)/i.test(name)) s+=120;
-      if(wantZh){ if(/美佳|美嘉|meijia|tingting|婷婷/i.test(name)) s+=150; }
-      else if(GOOD_EN.test(name)) s+=110;
-      if(v.localService) s+=15;
-      if(v.default) s+=8;
-      return s;
-    }
-    function best(wantZh){
-      const vs=synth.getVoices()||[]; let bv=null,bs=-1;
-      for(const v of vs){ const sc=rank(v,wantZh); if(sc>bs){bs=sc;bv=v;} }
-      return bs>0?bv:null;
-    }
-    const isEng=v=>v&&/^en/i.test(v.lang||'');
-    const isBad=v=>!v||!isEng(v)||NOVELTY.test(v.name||'');   // 空的、非英文、或搞笑聲＝需要修正
-    function curEngine(){ try{ return engine; }catch(e){ return null; } }
-    function fixVoices(){
-      // 中文：永遠回傳最自然的中文聲
-      const bz=best(true);
-      // 英文：只有在目前英文槽不理想時才幫忙換成最自然的英文聲（尊重使用者自選的好聲音）
-      if(curEngine()==='builtin'){
-        try{
-          const bv=(typeof builtinVoice!=='undefined')?builtinVoice:null;
-          if(isBad(bv)){
-            const be=best(false);
-            if(be){
-              builtinVoice=be;                                  // 主程式英文路徑會用到
-              try{ if(typeof voiceSel!=='undefined' && voiceSel){ voiceSel.value=be.voiceURI; } }catch(e){}
-              try{ if(typeof lsSet==='function') lsSet('tts_voice_builtin', be.voiceURI); }catch(e){}
-            }
-          }
-        }catch(e){}
-      }
-      return bz;
-    }
-    // 覆寫全域 pickZhVoice（內建語音的中文路徑、以及「朗讀選取文字」都會用到）
-    if(typeof window.pickZhVoice==='function'){
-      window.pickZhVoice=function(){ try{ return best(true)|| null; }catch(e){ return null; } };
-    }
-    // 聲音清單常延遲載入；用事件＋數次重試把英文槽修好
-    try{ synth.addEventListener('voiceschanged', fixVoices); }catch(e){}
-    let n=0; const iv=setInterval(()=>{ fixVoices(); if(++n>=8) clearInterval(iv); }, 700);
-    // 使用者切換引擎後（例如改回內建語音）再修一次
-    try{ const es=document.getElementById('engineSel'); es && es.addEventListener('change',()=>setTimeout(fixVoices,60)); }catch(e){}
-    fixVoices();
-  })();
-
+  /* Voice routing is now shared by every playback path in reader-core.js. */
   /* ---------- 7) 修正：手機放大後可拖曳／捲動到整頁（含左半邊） ----------
    * 主程式的 .scroller 用 justify-content:center 置中，但寬度只鎖在 100%；放大後書比畫面大時，
    * 左側會溢出到「捲軸到不了的負座標」，於是拖不到左半邊（有名的 flexbox 置中捲動 bug）。

@@ -1,0 +1,8 @@
+{
+  "name": "flipbook-reader",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "build:standalone": "node scripts/build-standalone.cjs"
+  }
+}

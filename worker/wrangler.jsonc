@@ -1,0 +1,8 @@
+{
+  "name": "reader-mobile-tts",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-07-16",
+  "vars": { "DAILY_CHAR_LIMIT": "100000" },
+  "durable_objects": { "bindings": [{ "name": "DAILY_QUOTA", "class_name": "DailyQuota" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DailyQuota"] }]
+}

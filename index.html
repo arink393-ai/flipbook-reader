@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>翻頁閱讀器 · PDF Flip Reader</title>
+<meta name="reader-version" content="2026.10.07.1">
+<script src="reader-core.js?v=2026.10.07.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -586,7 +588,7 @@
       <div class="drop" id="drop">
         <div class="big">📖</div>
         <h1>開啟一本書來閱讀</h1>
-        <p>支援 PDF、Word（.docx）、EPUB。把檔案拖進來，或按下方按鈕選擇。<br>檔案只在妳的瀏覽器中開啟，不會上傳到任何地方。</p>
+        <p>支援 PDF、Word（.docx）、EPUB。把檔案拖進來，或按下方按鈕選擇。<br>書籍保存在此瀏覽器；使用雲端朗讀或翻譯時，相關文字會傳送至所選服務。<br><small>版本 2026.10.07.1</small></p>
         <button class="btn primary open" id="openBtnFirstRun"><span class="ico">📂</span> 選擇檔案</button>
         <div class="hint">真實書本翻頁 · 放大縮小 · 選取文字即時翻譯<br>鍵盤：← → 翻頁　·　Ctrl + / − 縮放　·　拖曳可平移放大後的頁面</div>
       </div>
@@ -798,6 +800,7 @@ document.addEventListener('drop',e=>{e.preventDefault();const f=[...(e.dataTrans
 function extOf(name){ const m=/\.([a-z0-9]+)$/i.exec(name||''); return m?m[1].toLowerCase():''; }
 let loadToken=0;   // 每次開檔動作的序號，避免上一次還沒載入完就被下一次開檔打斷、兩邊互相汙染全域狀態
 async function openAnyFile(file,fromLib=false){
+  stopReading();audioCache.clear();
   const ext=extOf(file.name);
   if(ext==='docx') return loadFlowFile(file,'docx',fromLib);
   if(ext==='epub') return loadFlowFile(file,'epub',fromLib);
@@ -864,7 +867,7 @@ async function loadFlowFile(file,kind,fromLib=false){
     }
     if(myToken!==loadToken)return;
     if(!blocks.length){toast('這個檔案裡沒有找到可顯示的內容');return;}
-    docType='flow'; pdfDoc=null;
+    docType='flow';pdfDoc=null;reflowMode=false;savedPdfState=null;
     flowRawBlocks=blocks;
     fileKey='pg_'+file.name+'_'+file.size;
     loadAnno(); loadBookmarks(); resetSearchIndex(); loadSummaryForBook();
@@ -874,6 +877,7 @@ async function loadFlowFile(file,kind,fromLib=false){
     const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
     if(cancelled||myToken!==loadToken)return;
     flowPages=pages; flowToc=headingMap; totalPages=flowPages.length;
+    remapFlowAnchors();
     $('filename').textContent=file.name;
     $('pageTotal').textContent=totalPages;
     $('pageNum').max=totalPages; $('pageSlider').max=totalPages;
@@ -885,7 +889,9 @@ async function loadFlowFile(file,kind,fromLib=false){
     if(reading)stopReading(); clearHL();
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     const saved=parseInt(lsGet(fileKey,'1'))||1;
-    curPage=Math.min(Math.max(1,saved),totalPages);
+    const sourcePosition=lsGet(bookDataKey('position'),'');
+    let anchorPosition=null;try{anchorPosition=JSON.parse(sourcePosition);}catch(e){}
+    curPage=anchorPosition!==null?flowPageForOffset(anchorPosition):Math.min(Math.max(1,saved),totalPages);
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook();
     if(myToken!==loadToken)return;
@@ -1120,7 +1126,8 @@ async function paginateBlocks(blocks,cancelCheck){
   const sizer=ensureSizer(w,h);
   const pages=[]; const headingMap=[];
   let buffer=[]; let bufHTML='';
-  const queue=blocks.slice();
+  let sourceOffset=0;
+  const queue=blocks.map((b,index)=>{const out={...b,_sourceStart:sourceOffset,_sourceIndex:index};sourceOffset+=ReaderCore.normalizeText(b.text).length;return out;});
   const totalBlocks=queue.length;
   let guard=0, seenImg=false;
   while(queue.length){
@@ -1163,7 +1170,7 @@ async function paginateBlocks(blocks,cancelCheck){
       if(fitText){ buffer.push({...blk,text:fitText}); bufHTML+= '<'+tag+'>'+escHtmlFlow(fitText)+'</'+tag+'>'; }
       if(buffer.length){ pages.push(buffer); }
       buffer=[]; bufHTML='';
-      if(restText) queue.unshift({...blk,text:restText});
+      if(restText) queue.unshift({...blk,text:restText,_sourceStart:blk._sourceStart+ReaderCore.normalizeText(fitText).length});
       continue;
     }
     if(buffer.length){ pages.push(buffer); buffer=[]; bufHTML=''; }
@@ -1183,11 +1190,15 @@ async function repaginateFlow(){
   repaginating=true;
   showLoading('重新分頁中…');
   try{
-    const curFrac=totalPages>0?(curPage-1)/totalPages:0;
+    captureFlowAnchors();
+    const position=flowPositionForPage(curPage);
+    if(reading)stopReading();
     const {pages,headingMap}=await paginateBlocks(flowRawBlocks.slice());
     flowPages=pages; flowToc=headingMap; totalPages=flowPages.length;
     $('pageTotal').textContent=totalPages; $('pageNum').max=totalPages; $('pageSlider').max=totalPages;
-    curPage=Math.max(1,Math.min(totalPages,Math.round(curFrac*totalPages)+1));
+    if(reflowMode)reflowPageToPdf=flowPages.map(blks=>blks.find(b=>b.srcPage)?.srcPage||1);
+    remapFlowAnchors();
+    curPage=flowPageForOffset(position);
     if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
     await paintBook(); buildTOC();
   }catch(e){console.error(e);}
@@ -1274,6 +1285,7 @@ async function renderShelf(){
   if(!books.length){shelf.style.display='none';dropZone.style.display='';continueCard.style.display='none';syncElderUi();return;}
   dropZone.style.display='none';
   books.sort((a,b)=>(b.lastOpened||0)-(a.lastOpened||0));
+  for(const b of books)b.pages=Number(lsGet('pagecount_'+b.id,''))||b.pages;
   const recent=books[0],recentPage=parseInt(lsGet(recent.id,'1'))||1;
   $('continueTitle').textContent=(recent.name||'上次閱讀的書').replace(/\.(pdf|docx|epub)$/i,'');
   $('continueMeta').textContent='從第 '+recentPage+' 頁繼續'+(recent.pages?' · 共 '+recent.pages+' 頁':'');
@@ -1380,15 +1392,15 @@ function renderFlowLeaf(idx,cls){
     const el=document.createElement(tag);
     const text=b.text||'';
     if(tag==='h1'||tag==='h2'||tag==='h3'){
-      const sp=document.createElement('span'); sp.textContent=text; el.appendChild(sp);
+      const sp=document.createElement('span'); sp.textContent=text;sp.dataset.sourceStart=b._sourceStart;el.appendChild(sp);
     }else{
       const bounds=computeBounds(text);
       bounds.forEach(([a,c],i)=>{
         const t=text.slice(a,c).trim(); if(!t)return;
-        const sp=document.createElement('span'); sp.textContent=t; el.appendChild(sp);
+        const sp=document.createElement('span'); sp.textContent=t;sp.dataset.sourceStart=b._sourceStart+ReaderCore.normalizeText(text.slice(0,a)).length;el.appendChild(sp);
         if(i<bounds.length-1) el.appendChild(document.createTextNode(' '));
       });
-      if(!el.childNodes.length){ const sp=document.createElement('span'); sp.textContent=text; el.appendChild(sp); }
+      if(!el.childNodes.length){ const sp=document.createElement('span'); sp.textContent=text;sp.dataset.sourceStart=b._sourceStart;el.appendChild(sp); }
     }
     tl.appendChild(el);
   });
@@ -1468,7 +1480,7 @@ async function paintContinuous(myPaint,render){
     for(let p=Math.max(1,curPage-2);p<=Math.min(totalPages,curPage+2);p++)ensureContinuousLeaf(p);
   }
   ensureContinuousLeaf(curPage-1);ensureContinuousLeaf(curPage+1);
-  syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));
+  syncControls();updateBookmarkRibbons();updateChapterTime();saveReadingPosition();
   requestAnimationFrame(()=>scrollContinuousToPage(curPage,'auto'));
 }
 async function paintBook(){
@@ -1492,7 +1504,7 @@ async function paintBook(){
   syncControls();
   updateBookmarkRibbons();
   updateChapterTime();
-  if(fileKey)lsSet(fileKey,String(curPage));
+  saveReadingPosition();
 }
 
 stage.addEventListener('scroll',()=>{
@@ -1503,15 +1515,72 @@ stage.addEventListener('scroll',()=>{
     const hit=document.elementFromPoint(sr.left+sr.width/2,sr.top+Math.min(sr.height*0.32,220));
     const slot=hit&&hit.closest&&hit.closest('.continuous-slot');
     const p=slot?+slot.dataset.page:0;
-    if(p&&p!==curPage){curPage=p;syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));}
+    if(p&&p!==curPage){curPage=p;syncControls();updateBookmarkRibbons();updateChapterTime();saveReadingPosition();}
     if(p)trimContinuousPages(p);
     if(p){ensureContinuousLeaf(p-1);ensureContinuousLeaf(p+1);}
   });
 },{passive:true});
 
 /* ---------- 書籤（跟螢光筆標記分開，單純插旗某一頁）---------- */
-function loadBookmarks(){ try{ bookmarks=new Set(JSON.parse(lsGet('bm_'+fileKey,'[]'))); }catch(e){ bookmarks=new Set(); } }
-function saveBookmarks(){ lsSet('bm_'+fileKey, JSON.stringify([...bookmarks].sort((a,b)=>a-b))); }
+let flowBookmarkAnchors=[];
+function bookDataKey(kind){return kind+'_'+fileKey+(reflowMode?'_reflow':'');}
+function saveReadingPosition(){
+  if(!fileKey)return;
+  lsSet(fileKey,String(reflowMode?(reflowPageToPdf[curPage-1]||1):curPage));
+  if(!reflowMode)lsSet('pagecount_'+fileKey,String(totalPages));
+  if(docType==='flow')lsSet(bookDataKey('position'),JSON.stringify(flowPositionForPage(curPage)));
+}
+function backupBookData(key){const value=lsGet(key,'');if(value&&!lsGet(key+'_legacy_backup',''))lsSet(key+'_legacy_backup',value);}
+function loadBookmarks(){
+  try{bookmarks=new Set(JSON.parse(lsGet(bookDataKey('bm'),'[]')));flowBookmarkAnchors=JSON.parse(lsGet(bookDataKey('bm_anchor'),'[]'));}catch(e){bookmarks=new Set();flowBookmarkAnchors=[];}
+}
+function saveBookmarks(){
+  const key=bookDataKey('bm');backupBookData(key);
+  lsSet(key,JSON.stringify([...bookmarks].sort((a,b)=>a-b)));
+  if(docType==='flow'){
+    flowBookmarkAnchors=flowBookmarkAnchors.filter(o=>bookmarks.has(flowPageForOffset(o)));
+    for(const p of bookmarks)if(!flowBookmarkAnchors.some(o=>flowPageForOffset(o)===p))flowBookmarkAnchors.push(flowPositionForPage(p));
+    lsSet(bookDataKey('bm_anchor'),JSON.stringify(flowBookmarkAnchors));
+  }
+}
+function flowPageStart(p){return (flowPages[p-1]||[]).find(b=>b.text)?._sourceStart??(flowPages[p-1]||[])[0]?._sourceStart??0;}
+function flowPositionForPage(p){const first=(flowPages[p-1]||[])[0];return first?.type==='img'?{offset:first._sourceStart,block:first._sourceIndex}:flowPageStart(p);}
+function flowPageForOffset(offset){
+  if(offset&&typeof offset==='object'){
+    const imagePage=flowPages.findIndex(blocks=>blocks.some(b=>b._sourceIndex===offset.block));
+    if(imagePage>=0)return imagePage+1;offset=offset.offset;
+  }
+  for(let p=1;p<=flowPages.length;p++)for(const b of flowPages[p-1])if(b.text&&offset<b._sourceStart+ReaderCore.normalizeText(b.text).length)return p;
+  return Math.max(1,flowPages.length);
+}
+function captureFlowAnchors(){
+  if(docType!=='flow')return;
+  for(const [page,list] of Object.entries(annotations)){
+    if(!list.some(a=>!a.anchor))continue;
+    const full=spanMapFull([...renderFlowLeaf(+page,'single').querySelectorAll('.textLayer span')]).full;
+    for(const a of list)if(!a.anchor&&full){
+      a.quote=full.slice(a.start,a.end).trim();
+      a.anchor={start:flowPageStart(+page)+ReaderCore.normalizeText(full.slice(0,a.start)).length,end:flowPageStart(+page)+ReaderCore.normalizeText(full.slice(0,a.end)).length};
+    }
+  }
+  saveAnno();saveBookmarks();
+}
+function remapFlowAnchors(){
+  if(docType!=='flow')return;
+  const next={};
+  for(const [oldPage,list] of Object.entries(annotations))for(const a of list){
+    const page=a.anchor?flowPageForOffset(a.anchor.start):+oldPage;
+    (next[page]=next[page]||[]).push(a);
+  }
+  annotations=next;
+  for(const [page,list] of Object.entries(annotations)){
+    if(!list.some(a=>a.anchor))continue;
+    const full=spanMapFull([...renderFlowLeaf(+page,'single').querySelectorAll('.textLayer span')]).full;
+    for(const a of list)if(a.anchor){a.start=ReaderCore.rawOffset(full,a.anchor.start-flowPageStart(+page));a.end=ReaderCore.rawOffset(full,a.anchor.end-flowPageStart(+page));}
+  }
+  if(flowBookmarkAnchors.length)bookmarks=new Set(flowBookmarkAnchors.map(flowPageForOffset));
+  saveAnno();saveBookmarks();
+}
 function toggleBookmark(){
   if(!fileKey||!docLoaded())return;
   if(bookmarks.has(curPage)){ bookmarks.delete(curPage); toast('已移除書籤'); }
@@ -1662,10 +1731,19 @@ async function updateChapterTime(){
 $('rateSel').addEventListener('change',()=>updateChapterTime());
 
 /* ---------- 朗讀睡眠計時器 ---------- */
-let sleepTimerId=null, sleepMode='off', sleepChapterEnd=0;
+let sleepTimerId=null,sleepDeadline=0, sleepMode='off', sleepChapterEnd=0;
 let backgroundSleep=false,backgroundSleepUrl=null;
 let lastCloudError='';   // 雲端語音最近一次的實際錯誤原因（手機沒有主控台可看，靠這個提示診斷）
-function clearSleepTimer(){ if(sleepTimerId){clearTimeout(sleepTimerId);sleepTimerId=null;} }
+function clearSleepTimer(){ if(sleepTimerId){clearTimeout(sleepTimerId);sleepTimerId=null;}sleepDeadline=0; }
+function checkSleepDeadline(){if(sleepDeadline&&Date.now()>=sleepDeadline){stopReading();sleepMode='off';$('sleepSel').value='0';toast('⏰ 睡眠計時已到，已停止朗讀');}}
+function armSleepTimer(mins){clearSleepTimer();sleepMode='timer';sleepDeadline=Date.now()+mins*60000;sleepTimerId=setTimeout(checkSleepDeadline,mins*60000);}
+function startSelectedSleepTimer(){
+  const value=$('sleepSel').value;
+  if(value==='chapter'){sleepMode='chapter';sleepChapterEnd=currentChapterRange().end;}
+  else if(parseInt(value,10)>0)armSleepTimer(parseInt(value,10));
+}
+document.addEventListener('visibilitychange',checkSleepDeadline);
+window.addEventListener('pageshow',checkSleepDeadline);
 $('sleepSel').onchange=()=>{
   const v=$('sleepSel').value;
   clearSleepTimer();
@@ -1673,8 +1751,8 @@ $('sleepSel').onchange=()=>{
   if(v==='chapter'){ sleepMode='chapter'; sleepChapterEnd=currentChapterRange().end; toast('讀完本章（第 '+sleepChapterEnd+' 頁）後會自動停止朗讀'); return; }
   sleepMode='timer';
   const mins=parseInt(v)||30;
-  sleepTimerId=setTimeout(()=>{ stopReading(); sleepMode='off'; if($('sleepSel'))$('sleepSel').value='0'; toast('⏰ 睡眠計時已到，已停止朗讀'); },mins*60000);
-  toast(mins+' 分鐘後會自動停止朗讀');
+  if(reading)armSleepTimer(mins);
+  toast(reading?mins+' 分鐘後會自動停止朗讀':'開始播放後計時 '+mins+' 分鐘');
 };
 async function pageImage(idx){
   if(idx<1||idx>totalPages) return {blank:true,w:curW,h:curH};
@@ -1970,15 +2048,13 @@ const MOBILE_TTS_WORKER_DEFAULT='https://reader-mobile-tts.reader-tts-f0b859.wor
 let rate=parseFloat(lsGet('reader_rate','1'))||1;
 let voices=[],builtinVoice=null,elevenVoices=[];
 function pickZhVoice(){
-  return voices.find(x=>/^zh-TW/i.test(x.lang))
-      || voices.find(x=>/zh.*TW|TW.*zh/i.test(x.lang+' '+(x.name||'')))
-      || voices.find(x=>/^zh-HK/i.test(x.lang))
-      || voices.find(x=>/^zh/i.test(x.lang))
-      || null;
+  return ReaderCore.chooseVoice(synth?synth.getVoices():voices,'zh',builtinVoice);
 }
 let reading=false,paused=false,readPage=1;
 let sentences=[],sIdx=0,curAudio=null;
-const audioCache=new Map();
+const audioCache=new ReaderCore.AudioCache(12,url=>{if(/^blob:/.test(url))URL.revokeObjectURL(url);},url=>!!curAudio&&(curAudio.src===url||curAudio.currentSrc===url));
+let activeSpeechTask=null,activeAudioFinish=null,mobileFallbackActive=false;
+if(!lsGet('reader_voice_routing_v2','')){lsSet('tts_voice_builtin','auto');lsSet('reader_voice_routing_v2','1');}
 
 const GOOGLE_VOICES=[
   {id:'en-US-Neural2-F',label:'Google 美式女聲 F'},
@@ -2012,7 +2088,7 @@ if(synth){ loadBuiltinVoices(); synth.onvoiceschanged=loadBuiltinVoices; }
 function populateVoiceSel(){
   voiceSel.innerHTML='';
   let list=[];
-  if(engine==='builtin') list=voices.map(v=>({id:v.voiceURI,label:v.name+' ('+v.lang+')'}));
+  if(engine==='builtin') list=[{id:'auto',label:'自動自然選聲（中英文）'},...voices.map(v=>({id:v.voiceURI,label:v.name+' ('+v.lang+')'}))];
   else if(engine==='gtranslate') list=[{id:'auto',label:'自動選擇中英文語音'}];
   else if(engine==='local') list=[{id:'auto',label:'自動選擇中英文語音'}];
   else if(engine==='mobile') list=[{id:'auto',label:'自動選擇中英文語音'}];
@@ -2020,7 +2096,7 @@ function populateVoiceSel(){
   if(!list.length) list=[{id:'',label:'（無可用語音）'}];
   list.forEach(v=>{const o=document.createElement('option');o.value=v.id;o.textContent=v.label;voiceSel.appendChild(o);});
   let saved=lsGet('tts_voice_'+engine,'');
-  if(engine==='builtin'&&!saved){ const en=voices.find(v=>/^en/i.test(v.lang)); if(en)saved=en.voiceURI; }
+  if(engine==='builtin'&&!saved)saved='auto';
   if(saved&&list.some(v=>v.id===saved)) voiceSel.value=saved;
   else if(list[0]){ voiceSel.value=list[0].id; }
   lsSet('tts_voice_'+engine,voiceSel.value);
@@ -2042,26 +2118,27 @@ async function googleTTS(text){
   if(!r.ok)throw new Error('Google TTS 失敗 ('+r.status+')');
   const j=await r.json(); return 'data:audio/mp3;base64,'+j.audioContent;
 }
-async function mobileTTS(text){
-  const base=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim().replace(/\/$/,'');
+function mobileSpeechConfig(){return {base:lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim().replace(/\/$/,''),rate,voices:{zh:lsGet('tts_mobile_zh','cmn-TW-Wavenet-A'),en:lsGet('tts_mobile_en','en-US-Neural2-F')}};}
+function mobileSpeechPayload(text,config){return {text,rate:config.rate,voice:hasCJK(text)?config.voices.zh:config.voices.en,voices:config.voices,autoLanguage:true};}
+async function mobileTTS(text,config=mobileSpeechConfig()){
+  const {base}=config;
   if(!/^https:\/\//i.test(base))throw new Error('請先設定 HTTPS Worker 網址');
-  const zh=hasCJK(text);
-  const voice=zh?lsGet('tts_mobile_zh','cmn-TW-Wavenet-A'):lsGet('tts_mobile_en','en-US-Neural2-F');
-  const r=await fetch(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate})});
-  if(!r.ok){let msg='HTTP '+r.status;try{const j=await r.json();if(j&&j.error)msg=j.error;}catch(e){}throw new Error(msg);}
-  return URL.createObjectURL(await r.blob());
+  const blob=await ReaderCore.fetchTimed(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(mobileSpeechPayload(text,config))},25000,async r=>{
+    if(!r.ok){let msg='HTTP '+r.status;try{const j=await r.json();if(j&&j.error)msg=j.error;}catch(e){}throw new Error(msg);}
+    return r.blob();
+  });
+  return URL.createObjectURL(blob);
 }
-async function mobileTTSPrepare(text){
-  const base=lsGet('tts_mobile_worker',MOBILE_TTS_WORKER_DEFAULT).trim().replace(/\/$/,'');
+async function mobileTTSPrepare(text,maxSeconds){
+  const config=mobileSpeechConfig(),{base}=config;
   if(!/^https:\/\//i.test(base))throw new Error('請先設定手機自然語音的 HTTPS Worker 網址');
-  const zh=hasCJK(text);
-  const voice=zh?lsGet('tts_mobile_zh','cmn-TW-Wavenet-A'):lsGet('tts_mobile_en','en-US-Neural2-F');
-  const r=await fetch(base+'/tts-prepare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate})});
-  let j=null;try{j=await r.json();}catch(e){}
-  if(!r.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
+  const j=await ReaderCore.fetchTimed(base+'/tts-prepare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...mobileSpeechPayload(text,config),maxSeconds})},240000,async r=>{
+    let data=null;try{data=await r.json();}catch(e){}
+    if(!r.ok)throw new Error(data?.error||('HTTP '+r.status));return data;
+  });
   const audioUrl=String(j&&j.audioUrl||'');
   if(!/^https:\/\//i.test(audioUrl))throw new Error('語音服務沒有回傳有效的音訊網址');
-  return audioUrl;
+  return {...j,audioUrl};
 }
 async function elevenTTS(text){
   const key=keyFor('eleven'); if(!key)throw new Error('缺少 ElevenLabs API 金鑰');
@@ -2082,12 +2159,10 @@ async function localTTS(text){
   return URL.createObjectURL(await r.blob());
 }
 async function getAudio(text){
-  if(audioCache.has(text))return audioCache.get(text);
-  const url = engine==='mobile'?await mobileTTS(text)
-            : engine==='google'?await googleTTS(text)
-            : engine==='eleven'?await elevenTTS(text)
-            : await localTTS(text);
-  audioCache.set(text,url); return url;
+  const selectedEngine=engine,config=mobileSpeechConfig();
+  const key=JSON.stringify([selectedEngine,rate,voiceSel.value,config,text]);
+  return audioCache.get(key,()=>selectedEngine==='mobile'?mobileTTS(text,config)
+    :selectedEngine==='google'?googleTTS(text):selectedEngine==='eleven'?elevenTTS(text):localTTS(text));
 }
 async function loadElevenVoices(){
   const key=keyFor('eleven'); if(!key){toast('請先填入 ElevenLabs 金鑰');return;}
@@ -2464,7 +2539,7 @@ async function prepareReadAhead(page,tk){
     preparedSentences=await collectReadSentences(leaves,false);
   }finally{if(measure)measure.remove();}
   if(!reading||tk!==readToken)return null;
-  if(engine!=='builtin'&&engine!=='gtranslate')await Promise.all(preparedSentences.slice(0,2).map(s=>getAudio(s.text).catch(()=>null)));
+  if(engine!=='builtin'&&engine!=='gtranslate'&&!mobileFallbackActive)await Promise.all(preparedSentences.slice(0,2).map(s=>getAudio(s.text).catch(()=>null)));
   return {page,mode:viewMode,leaves,sentences:preparedSentences};
 }
 function beginReadAhead(tk){
@@ -2491,7 +2566,7 @@ async function loadPage(tk=readToken){
     if(viewMode==='continuous')await scrollContinuousToPage(readPage,'smooth');
     else if(prepared&&prepared.leaves.length){
       paintToken++;book.className='book'+(viewMode==='spread'?' spread':'');book.innerHTML='';prepared.leaves.forEach(l=>book.appendChild(l));
-      syncControls();updateBookmarkRibbons();updateChapterTime();if(fileKey)lsSet(fileKey,String(curPage));stage.scrollTop=0;stage.scrollLeft=0;
+      syncControls();updateBookmarkRibbons();updateChapterTime();saveReadingPosition();stage.scrollTop=0;stage.scrollLeft=0;
     }else{await paintBook();stage.scrollTop=0;stage.scrollLeft=0;}
   }
   let leaves;
@@ -2510,28 +2585,54 @@ async function gatePause(){ while(paused&&reading) await sleep(120); }
 let readToken=0;
 async function startReading(){
   if(!docLoaded())return;
-  if(reading&&!paused){ paused=true; if(engine==='builtin')synth.pause(); else if(curAudio)curAudio.pause(); updateAudioUI(); return; }
-  if(reading&&paused){ paused=false; if(engine==='builtin')synth.resume(); else if(curAudio)curAudio.play().catch(()=>{}); updateAudioUI(); return; }
+  if(reading&&!paused){pauseReading();return;}
+  if(reading&&paused){resumeReading();return;}
   if(engine==='builtin'&&!synth){ toast('此瀏覽器沒有內建語音，請改用其他語音來源'); return; }
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
   unlockAudio();   // 趁使用者手勢還在，先解鎖音訊播放（iOS 雲端語音必要）
+  mobileFallbackActive=false;
   reading=true;paused=false;readPage=curPage;ttsFails=0;readAhead=null;updateAudioUI();
+  startSelectedSleepTimer();
   document.body.classList.add('reading-on');
   const tk=++readToken;
   await loadPage(); if(reading&&tk===readToken)playFrom(0,tk);
 }
+function pauseReading(){
+  if(!reading||paused)return;
+  paused=true;
+  if(curAudio)curAudio.pause();
+  if(activeSpeechTask&&synth)synth.pause();
+  updateAudioUI();
+}
+function resumeReading(){
+  if(sleepDeadline&&Date.now()>=sleepDeadline){checkSleepDeadline();return;}
+  if(!reading)return startReading();
+  if(!paused)return;
+  paused=false;
+  if(curAudio)curAudio.play().catch(()=>{paused=true;updateAudioUI();toast('請再按播放以恢復音訊');});
+  if(activeSpeechTask&&synth)synth.resume();
+  updateAudioUI();
+}
 function stopReading(){
+  clearSleepTimer();sleepMode='off';
   readToken++;                       // invalidate any in-flight reading loop
   readTextToken++;                   // 一併中止摘要朗讀迴圈
   readingText=false;
   readAhead=null;
   reading=false;paused=false;
   document.body.classList.remove('reading-on');
+  if(activeSpeechTask)activeSpeechTask.cancel();
   if(synth)synth.cancel();
   backgroundSleep=false;
   stopAudio();
   if(backgroundSleepUrl){if(/^blob:/i.test(backgroundSleepUrl)){try{URL.revokeObjectURL(backgroundSleepUrl);}catch(e){}}backgroundSleepUrl=null;}
-  if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='none';}catch(e){}}
+  if('mediaSession' in navigator){try{
+    navigator.mediaSession.playbackState='none';navigator.mediaSession.metadata=null;
+    navigator.mediaSession.setActionHandler('play',resumeReading);
+    navigator.mediaSession.setActionHandler('pause',pauseReading);
+    navigator.mediaSession.setActionHandler('stop',stopReading);
+    for(const action of ['seekto','seekbackward','seekforward'])navigator.mediaSession.setActionHandler(action,null);
+  }catch(e){}}
   clearHL();updateAudioUI();
   readTrans.style.display='none';
   document.body.classList.remove('trans-open');
@@ -2616,14 +2717,16 @@ async function showReadTrans(text,nextText){
 let audioSession=0;                // 播放場次編號：共用同一個 audio 元素時，用它辨識「這次播放」是否已被取代
 function stopAudio(){
   audioSession++;                  // 讓仍在跑的舊計時迴圈自己收手
+  if(activeAudioFinish){const finish=activeAudioFinish;activeAudioFinish=null;finish();}
   if(curAudio){
     try{
-      curAudio.pause();curAudio.loop=false;
       curAudio.onended=null;curAudio.onerror=null;curAudio.onplay=null;curAudio.onpause=null;
+      curAudio.pause();curAudio.loop=false;
       curAudio.ontimeupdate=null;curAudio.onloadedmetadata=null;curAudio.src='';
     }catch(e){}
     curAudio=null;
   }
+  audioCache.collect();
 }
 /* iOS/Safari 只允許「使用者手勢」直接觸發音訊播放。雲端語音要 await 抓取音檔，
    等音檔回來已經脫離手勢脈絡，iOS 會拒絕播放（所以手機上只有內建語音能用）。
@@ -2654,23 +2757,18 @@ function playAudioEl(url,onTime){
     const live=()=>audioSession===my;
     const tick=()=>{ if(!live())return; try{ onTime&&onTime(a.currentTime,a.duration||0); }catch(e){} raf=requestAnimationFrame(tick); };
     const stopTick=()=>{ if(raf)cancelAnimationFrame(raf); raf=0; };
-    a.onended=()=>{ stopTick(); if(!live())return; if(curAudio===a)curAudio=null; resolve(); };
-    a.onerror=()=>{ stopTick(); if(!live())return; if(curAudio===a)curAudio=null; reject(new Error('audio')); };
+    const finish=err=>{stopTick();if(activeAudioFinish===finish)activeAudioFinish=null;if(err)reject(err);else resolve();};
+    activeAudioFinish=finish;
+    a.onended=()=>{ if(!live())return; if(curAudio===a)curAudio=null;finish(); };
+    a.onerror=()=>{ if(!live())return; if(curAudio===a)curAudio=null;finish(new Error('audio')); };
     a.onplay=()=>{ stopTick(); if(onTime&&live())raf=requestAnimationFrame(tick); };
-    a.play().catch(err=>{ if(live()) reject(err); });
+    a.play().catch(err=>{ if(live())finish(err); });
   });
 }
 /* Google Translate free TTS — auto en/zh per chunk, max ~180 chars */
 function gtURL(t,lang){return 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+lang+'&q='+encodeURIComponent(t);}
 function gtChunks(text){
-  const out=[];let rest=text.trim();
-  while(rest.length){
-    let piece=rest.slice(0,180);
-    if(rest.length>180){const sp=piece.lastIndexOf(' ');if(sp>60)piece=piece.slice(0,sp);}
-    if(piece.trim())out.push({text:piece.trim(),lang:hasCJK(piece)?'zh-TW':'en'});
-    rest=rest.slice(piece.length).trim();
-  }
-  return out;
+  return ReaderCore.speechChunks(text).map(c=>({text:c.text,lang:c.lang==='zh'?'zh-TW':'en'}));
 }
 async function playGTranslate(text,tk){
   const chunks=gtChunks(text);
@@ -2724,107 +2822,58 @@ async function playGTranslate(text,tk){
 let ttsFails=0;
 /* 把內建語音拆成短而完整的片段。Web Speech 在 macOS / iOS 與部分 Chromium
    對較長 utterance 偶爾會漏掉 boundary 附近的字；逐片段等待 onend 可避開此問題。 */
-function builtinChunks(text){
-  const out=[];
-  const max=hasCJK(text)?48:110;
-  let pos=0;
-  while(pos<text.length){
-    while(pos<text.length&&/\s/.test(text[pos]))pos++;
-    if(pos>=text.length)break;
-    let end=Math.min(text.length,pos+max);
-    if(end<text.length){
-      const slice=text.slice(pos,end);
-      let cut=-1;
-      // 優先在自然停頓處切；英文則至少在單字空格切，絕不切斷單字。
-      for(let i=Math.max(12,Math.floor(slice.length*0.45));i<slice.length;i++){
-        if(/[。！？!?；;：:，,、]/.test(slice[i]))cut=i+1;
-        else if(!hasCJK(slice)&&/\s/.test(slice[i]))cut=i;
-      }
-      if(cut>0)end=pos+cut;
-    }
-    let raw=text.slice(pos,end), trimmed=raw.replace(/\s+$/,'');
-    if(trimmed)out.push({text:trimmed,start:pos});
-    pos=end;
-  }
-  return out.length?out:[{text,start:0}];
-}
-/* speak one sentence; resolves when fully done. Handles each engine. */
-async function speakSentence(text,preUrl,tk,s){
-  curWords = wordRanges(s&&s.parts);
-  if(engine==='builtin'){
-    const speakText = text;
-    let searchFrom=0;
-    const wordCharStart = curWords.map(w=>{
-      let at=speakText.indexOf(w.text,searchFrom);
-      if(at<0) at=searchFrom;
-      searchFrom=Math.min(speakText.length,at+w.text.length);
-      return at;
-    });
-    let lastWi=-1;
-    const pickByChar=(ci)=>{ let wi=0; while(wi+1<wordCharStart.length && wordCharStart[wi+1]<=ci)wi++; return wi; };
-    const setWi=(wi)=>{ if(wi<lastWi)wi=lastWi; if(wi!==lastWi){lastWi=wi;setWordHi(wi);} };
-    for(const chunk of builtinChunks(speakText)){
-      await gatePause();
-      if(!reading||tk!==readToken)return;
-      await new Promise(res=>{
-      // 永遠朗讀原句，不能為了高亮對位把 token 直接 join('')：那會刪掉英文單字間的
-      // 空格（例如 "read this" 變成 "readthis"），部分內建語音會因此吞字或跳字。
+function builtinChunks(text){return ReaderCore.speechChunks(text);}
+async function speakBuiltinText(text,tk,onCharacter){
+  if(!synth)throw new Error('此裝置沒有內建語音');
+  for(const chunk of builtinChunks(text)){
+    await gatePause();if(!reading||tk!==readToken)return;
+    await new Promise((resolve,reject)=>{
       const u=new SpeechSynthesisUtterance(chunk.text);
-      const zh=hasCJK(chunk.text);
-      const v = zh ? (pickZhVoice()||builtinVoice)
-                   : (builtinVoice||voices.find(x=>/^en/i.test(x.lang)));
-      if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; u.pitch=1;
-      let gotBoundary=false,startTime=0,fallbackTimer=null,ended=false;
-      let keepAlive=null,watchdog=null;
-      const cleanup=()=>{
-        if(fallbackTimer){clearInterval(fallbackTimer);fallbackTimer=null;}
-        if(keepAlive){clearInterval(keepAlive);keepAlive=null;}
-        if(watchdog){clearTimeout(watchdog);watchdog=null;}
+      const voice=ReaderCore.chooseVoice(synth.getVoices(),chunk.lang,builtinVoice);
+      if(voice)u.voice=voice;
+      u.lang=voice?.lang||(chunk.lang==='zh'?'zh-TW':'en-US');u.rate=rate;u.pitch=1;
+      let ended=false,started=false,gotBoundary=false,elapsed=0,lastTick=Date.now();
+      const task={cancel:()=>finish()};
+      const finish=err=>{
+        if(ended)return;ended=true;clearInterval(timer);
+        u.onend=u.onerror=u.onboundary=u.onstart=null;
+        if(activeSpeechTask===task)activeSpeechTask=null;
+        if(err)reject(err);else resolve();
       };
-      const done=()=>{ if(ended)return; ended=true; cleanup(); res(); };
-      u.onboundary=e=>{
-        if(!reading||tk!==readToken||!curWords.length)return;
-        if(e.name&&e.name!=='word'&&e.name!=='sentence')return;
-        gotBoundary=true;
-        if(fallbackTimer){ clearInterval(fallbackTimer); fallbackTimer=null; }
-        setWi(pickByChar(chunk.start+((typeof e.charIndex==='number')?e.charIndex:0)));
-      };
-      u.onstart=()=>{
-        startTime=Date.now();
-        if(curWords.length&&reading&&tk===readToken)setWi(pickByChar(chunk.start));
-        setTimeout(()=>{
-          if(gotBoundary||ended||!reading||tk!==readToken)return;
-          const perChar = zh ? (0.28/Math.max(0.5,rate)) : (0.09/Math.max(0.5,rate));
-          const estTotal = Math.max(0.6, chunk.text.length*perChar);
-          fallbackTimer=setInterval(()=>{
-            if(gotBoundary||ended||!reading||tk!==readToken){ clearInterval(fallbackTimer); fallbackTimer=null; return; }
-            const elapsed=(Date.now()-startTime)/1000;
-            const p=Math.max(0,Math.min(1,elapsed/estTotal));
-            setWi(pickByChar(chunk.start+Math.floor(p*chunk.text.length)));
-          },80);
-        }, 350);
-      };
-      u.onend=done; u.onerror=done;
-      // Chrome/Android 的 speechSynthesis 有個惡名昭彰的 bug：唸約 15 秒後會自己暫停、
-      // 且有時 onend 不觸發，導致「唸一句就不動了」。用定時 pause→resume 保活。
-      keepAlive=setInterval(()=>{
-        if(ended){ clearInterval(keepAlive); keepAlive=null; return; }
-        try{ if(synth.speaking){ synth.pause(); synth.resume(); } }catch(e){}
-      },10000);
-      // 看門狗：萬一這段語音的 onend/onerror 都沒觸發（某些 Android WebView 會這樣），
-      // 依文字長度估一個上限，超時就當它唸完，繼續下一句，避免整個朗讀卡死。
-      const perCharW = zh ? 0.42 : 0.14;
-      const maxMs = Math.max(4000, chunk.text.length*perCharW*1000/Math.max(0.5,rate) + 4000);
-      watchdog=setTimeout(()=>{ if(!ended){ try{synth.cancel();}catch(e){} done(); } }, maxMs);
-      try{ synth.cancel(); }catch(e){}   // 清掉可能卡住的前一段，避免佇列堆積不動
-      synth.speak(u);
-      });
-      // 某些系統語音若在同一個 event loop 立刻送下一段會吞掉段首，讓出一拍。
-      if(reading&&tk===readToken)await sleep(35);
-    }
+      const timer=setInterval(()=>{
+        const now=Date.now(),delta=Math.min(1500,now-lastTick);lastTick=now;
+        if(ended||paused||!reading||tk!==readToken)return;
+        elapsed+=delta;
+        if(started&&!gotBoundary&&onCharacter){
+          const estimated=chunk.text.length*(chunk.lang==='zh'?280:90)/Math.max(.5,rate);
+          onCharacter(chunk.start+Math.min(chunk.text.length-1,Math.floor(elapsed/Math.max(600,estimated)*chunk.text.length)));
+        }
+        // A stalled utterance is an error, never a successfully completed sentence.
+        const limit=Math.max(30000,chunk.text.length*(chunk.lang==='zh'?800:300)/Math.max(.5,rate)+15000);
+        if(elapsed>limit){finish(new Error('內建語音沒有回應，已停在目前句子；請重新播放'));synth.cancel();}
+      },120);
+      u.onstart=()=>{started=true;elapsed=0;lastTick=Date.now();onCharacter?.(chunk.start);};
+      u.onboundary=e=>{if(!paused&&reading&&tk===readToken&&Number.isFinite(e.charIndex)){gotBoundary=true;onCharacter?.(chunk.start+e.charIndex);}};
+      u.onend=()=>finish();
+      u.onerror=e=>finish(new Error('內建語音中斷（'+(e.error||'unknown')+'），未略過本句'));
+      activeSpeechTask=task;
+      try{synth.speak(u);}catch(e){finish(e);}
+    });
+  }
+}
+/* One sentence, shared by normal reading, selections and summaries. */
+async function speakSentence(text,preUrl,tk,s,voiceEngine=(engine==='mobile'&&mobileFallbackActive?'builtin':engine)){
+  curWords=wordRanges(s&&s.parts);
+  if(voiceEngine==='builtin'){
+    let searchFrom=0,lastWi=-1;
+    const starts=curWords.map(w=>{let at=text.indexOf(w.text,searchFrom);if(at<0)at=searchFrom;searchFrom=at+w.text.length;return at;});
+    await speakBuiltinText(text,tk,ci=>{
+      let wi=0;while(wi+1<starts.length&&starts[wi+1]<=ci)wi++;
+      if(wi>lastWi&&curWords.length){lastWi=wi;setWordHi(wi);}
+    });
     return;
   }
-  if(engine==='gtranslate'){ return playGTranslate(text,tk); }
+  if(voiceEngine==='gtranslate'){ return playGTranslate(text,tk); }
   // google / eleven / local — use the already-fetched url, prefetch the next one
   const url=preUrl||await getAudio(text);
   if(sentences[sIdx+1]) getAudio(sentences[sIdx+1].text).catch(()=>{});
@@ -2853,7 +2902,7 @@ async function playFrom(i,tk){
     if(i>=Math.max(0,sentences.length-2))beginReadAhead(tk);
     // pre-fetch this sentence's audio FIRST, so the highlight appears in sync with the voice
     let preUrl=null, fetchErr=false;
-    if(engine!=='builtin'&&engine!=='gtranslate'){
+    if(engine!=='builtin'&&engine!=='gtranslate'&&!mobileFallbackActive){
       try{ preUrl=await getAudio(s.text); }
       catch(e){
         fetchErr=true;
@@ -2877,18 +2926,21 @@ async function playFrom(i,tk){
     }
     catch(err){
       ttsFails++;
-      if(engine==='mobile'&&reading&&tk===readToken&&synth){
-        const failedEngine=engine;
-        engine='builtin';
-        toast('網路／雲端語音中斷，這一句改用內建語音');
-        try{await speakSentence(s.text,null,tk,s);}finally{engine=failedEngine;}
+      if(engine==='mobile'&&!mobileFallbackActive&&reading&&tk===readToken&&synth){
+        mobileFallbackActive=true;
+        toast('自然語音暫時中斷，本次朗讀改用內建語音；重新播放可再試自然語音');
+        try{await speakSentence(s.text,null,tk,s,'builtin');}catch(e){if(tk===readToken){stopReading();toast(e.message||'備援語音中斷，已停止');}return;}
         if(reading&&tk===readToken){ttsFails=0;i++;continue;}
       }
       await sleep(150);
       if(tk!==readToken)return;
+      if(engine==='builtin'||mobileFallbackActive){stopReading();toast(err.message||'朗讀中斷，請從目前句子重新播放');return;}
       if(engine==='gtranslate'&&ttsFails>=2){ stopReading(); toast('Google 翻譯語音目前無法使用，請改用「內建語音」'); return; }
       if(needsKey(engine)&&ttsFails>=2){ stopReading(); toast(lastCloudError || '雲端語音失敗，請檢查 ⚙ 設定的金鑰'); lastCloudError=''; return; }
       if(engine==='local'&&ttsFails>=2){ stopReading(); toast('本機語音伺服器無回應，請確認 Kokoro 是否已啟動'); return; }
+      // Retrying the same sentence must not advance the text on an error.
+      if(ttsFails<2)continue;
+      stopReading();toast(lastCloudError||'語音播放失敗，未略過本句');return;
     }
     if(!reading||tk!==readToken)return;
     i++;
@@ -2905,7 +2957,7 @@ async function startSleepBackground(){
   const selected=$('sleepSel').value;
   let mins=parseInt(selected,10);
   if(!Number.isFinite(mins)||mins<5||mins>60){toast('請先在「⏰ 定時」選擇 5～60 分鐘，再按睡眠背景播放');return;}
-  clearSleepTimer();sleepMode='timer';stopReading();
+  stopReading();const tk=++readToken;
 
   // 固定存在於頁面的原生 audio 在點擊當下開始循環靜音，保住 iOS 的播放授權。
   // 真正音訊使用可接受 Range 的 HTTPS 網址，避免大型 blob: 在鎖屏後被暫停或回收。
@@ -2918,6 +2970,7 @@ async function startSleepBackground(){
     let text='',estimated=0,lastPage=curPage;
     for(let p=curPage;p<=totalPages&&text.length<60000&&estimated<mins*1.08;p++){
       const t=(await getPageText(p)).replace(/\s+/g,' ').trim();
+      if(tk!==readToken)return;
       if(!t)continue;
       text+=(text?'\n':'')+t;estimated=estimateMinutesForText(text);lastPage=p;
     }
@@ -2927,9 +2980,9 @@ async function startSleepBackground(){
       text=text.slice(0,keep).replace(/\s+\S*$/,'').trim();
       estimated=estimateMinutesForText(text);
     }
-    const url=await mobileTTSPrepare(text);
-    if(curAudio!==a)return;
-    backgroundSleepUrl=url;backgroundSleep=true;reading=true;paused=false;readPage=lastPage;
+    const prepared=await mobileTTSPrepare(text,mins*60),url=prepared.audioUrl;
+    if(curAudio!==a||tk!==readToken)return;
+    backgroundSleepUrl=url;backgroundSleep=true;reading=true;paused=false;readPage=curPage;
     document.body.classList.add('reading-on');
     a.loop=false;a.src=url;a.preload='auto';a.load();
     a.onended=()=>{if(curAudio!==a)return;stopReading();$('sleepSel').value='0';toast('🌙 睡眠背景播放已結束');};
@@ -2953,8 +3006,9 @@ async function startSleepBackground(){
         navigator.mediaSession.setActionHandler('stop',()=>stopReading());
       }catch(e){}
     }
-    await a.play();syncPosition();updateAudioUI();
-    toast('🌙 已開始約 '+Math.round(estimated)+' 分鐘背景播放；聽到聲音後即可鎖定螢幕');
+    await a.play();if(tk!==readToken)return;armSleepTimer(mins);syncPosition();updateAudioUI();
+    const actual=Number(prepared.durationSeconds);
+    toast('🌙 背景播放已開始'+(actual?'（音訊約 '+Math.ceil(actual/60)+' 分鐘）':'')+'；'+mins+' 分鐘後停止。聽到聲音後即可鎖屏');
   }catch(e){
     if(curAudio===a)stopReading();
     toast('無法開始背景播放：'+(e&&e.message?e.message:'未知錯誤'));
@@ -2972,7 +3026,7 @@ function readFromSpan(span){
   if(needsKey(engine)&&!keyFor(engine)){ openTtsSettings(); toast('請先在設定填入 API 金鑰'); return; }
   stopReading();                                  // cleanly stop any current playback
   unlockAudio();   // 趁使用者手勢還在，先解鎖音訊播放（iOS 雲端語音必要）
-  reading=true; paused=false; ttsFails=0;
+  mobileFallbackActive=false;reading=true; paused=false; ttsFails=0;
   document.body.classList.add('reading-on');
   readPage=(viewMode==='spread'&&totalPages>1)?((curPage%2===0&&curPage>1)?curPage-1:curPage):curPage;
   // build sentences for the currently displayed page/spread (no repaint)
@@ -3007,12 +3061,15 @@ document.addEventListener('dblclick',e=>{
 /* read the currently selected text aloud (uses current engine) */
 async function speakSelection(text){
   if(!text)return;
-  stopReading();
+  stopReading();unlockAudio();mobileFallbackActive=false;reading=true;paused=false;const tk=++readToken;updateAudioUI();
   try{
-    if(engine==='builtin'){ if(!synth)return; const u=new SpeechSynthesisUtterance(text); const zh=hasCJK(text); const v=zh?(pickZhVoice()||builtinVoice):(builtinVoice||voices.find(x=>/^en/i.test(x.lang))); if(v)u.voice=v; u.lang=zh?'zh-TW':'en-US'; u.rate=rate; synth.speak(u); }
-    else if(engine==='gtranslate'){ for(const c of gtChunks(text)){ await new Promise((res,rej)=>{const a=new Audio(gtURL(c.text,c.lang));a.onended=res;a.onerror=rej;a.play().catch(rej);}); } }
-    else{ const url=await getAudio(text); new Audio(url).play(); }
-  }catch(e){ toast('語音播放失敗，可改用內建語音'); }
+    if(engine==='builtin')await speakBuiltinText(text,tk);
+    else if(engine==='gtranslate')await playGTranslate(text,tk);
+    else{const url=await getAudio(text);await gatePause();if(reading&&tk===readToken)await playAudioEl(url);}
+  }catch(e){
+    if(engine==='mobile'&&synth&&reading&&tk===readToken){toast('自然語音暫時無法使用，改用內建語音');try{await speakBuiltinText(text,tk);}catch(err){toast(err.message);}}
+    else if(tk===readToken)toast(e.message||'語音播放失敗，可改用內建語音');
+  }finally{if(tk===readToken)stopReading();}
 }
 
 /* ---- cloud TTS settings modal ---- */
@@ -3020,7 +3077,7 @@ const ttsModal=$('ttsModal'),ttsModalBody=$('ttsModalBody');
 function openTtsSettings(){
   let html='';
   if(engine==='builtin'){
-    html='<p>裝置內建語音免費、無需金鑰，但聲音較機械。內建語音會依句子自動切換英文／中文（前提是妳的系統有安裝中文語音）。</p>';
+    html='<p>預設「自動自然選聲」會依文字切換中文與英文，包括同一句中英夾雜。會優先使用裝置已提供的增強或自然聲音；實際音質取決於手機已安裝的聲音。</p><p>若手動指定聲音，只套用到該語言，另一種語言仍自動選擇。想要更一致的音質或鎖屏播放，可改用「手機自然語音」。</p>';
   }else if(engine==='gtranslate'){
     html='<p>使用 Google 翻譯本身的語音，<b>完全免費、不需要金鑰</b>，並會依每個句子自動判斷用英文或中文發音。直接按「▶ 朗讀」即可。</p>'
         +'<p>注意：這是免費的公開服務，偶爾可能因為連線限制而暫時讀不出來；遇到時可改用「內建語音」。</p>';
@@ -3623,8 +3680,8 @@ $('wcHi').onclick=()=>{ annotateSelection('h','rgba(245,222,90,.55)'); hideWordC
 
 /* ---------- annotations (highlight / underline + notes) ---------- */
 let annotations={};
-function loadAnno(){ try{annotations=JSON.parse(lsGet('anno_'+fileKey,'{}'))||{};}catch(e){annotations={};} if(typeof syncAnnotationUI==='function')syncAnnotationUI(); }
-function saveAnno(){ try{lsSet('anno_'+fileKey,JSON.stringify(annotations));}catch(e){} }
+function loadAnno(){ try{annotations=JSON.parse(lsGet(bookDataKey('anno'),'{}'))||{};}catch(e){annotations={};} if(typeof syncAnnotationUI==='function')syncAnnotationUI(); }
+function saveAnno(){ try{const key=bookDataKey('anno');backupBookData(key);lsSet(key,JSON.stringify(annotations));}catch(e){} }
 function annotationCount(){return Object.values(annotations).reduce((n,list)=>n+(Array.isArray(list)?list.length:0),0);}
 function annotationTime(a){
   const saved=Number(a&&a.createdAt);if(saved)return saved;
@@ -3668,9 +3725,15 @@ function applyAnnotations(leaf){
   let old; while((old=leaf.querySelector('mark.anno-fragment')))old.replaceWith(...old.childNodes);
   const spans=[...leaf.querySelectorAll('.textLayer span')];
   spans.forEach(sp=>{sp.normalize();sp.classList.remove('anno');delete sp.dataset.annoId;sp.style.background='';sp.style.borderBottom='';if((sp.title||'').startsWith('📝 '))sp.removeAttribute('title');});
-  const list=annotations[page]; if(!list||!list.length)return;
+  const list=docType==='flow'?Object.values(annotations).flat().filter(a=>a.anchor||(annotations[page]||[]).includes(a)):annotations[page]; if(!list||!list.length)return;
   const {map}=spanMapFull(spans);
   list.forEach(a=>{
+    if(docType==='flow'&&a.anchor){
+      spans.forEach(sp=>{
+        const text=sp.textContent||'',base=Number(sp.dataset.sourceStart),end=base+ReaderCore.normalizeText(text).length;
+        if(Number.isFinite(base)&&end>a.anchor.start&&base<a.anchor.end)wrapAnnoPart(sp,ReaderCore.rawOffset(text,Math.max(0,a.anchor.start-base)),ReaderCore.rawOffset(text,Math.min(end,a.anchor.end)-base),a);
+      });return;
+    }
     spans.forEach(sp=>{const m=map.get(sp); if(m&&m.end>a.start&&m.start<a.end)wrapAnnoPart(sp,Math.max(0,a.start-m.start),Math.min(m.end-m.start,a.end-m.start),a);});
   });
 }
@@ -3698,7 +3761,11 @@ function annotateSelection(type,color){
   if(end<=start){toast('請拖過想標記的文字');return;}
   const page=+leaf.dataset.page;
   const now=Date.now();
-  const a={id:'a'+now.toString(36)+Math.random().toString(36).slice(2,5),createdAt:now,start,end,type,color,note:''};
+  const a={id:'a'+now.toString(36)+Math.random().toString(36).slice(2,5),createdAt:now,start,end,type,color,note:'',quote:spanMapFull(spans).full.slice(start,end).trim()};
+  if(docType==='flow'){
+    const full=spanMapFull(spans).full;
+    a.anchor={start:flowPageStart(page)+ReaderCore.normalizeText(full.slice(0,start)).length,end:flowPageStart(page)+ReaderCore.normalizeText(full.slice(0,end)).length};
+  }
   (annotations[page]=annotations[page]||[]).push(a);
   saveAnno(); syncAnnotationUI(); applyAnnotations(leaf);
   hideTPop(); sel.removeAllRanges();
@@ -3864,7 +3931,7 @@ async function renderAnnotationList(list,onNavigate){
   const entries=[];
   for(const page of pages){
     const full=await getPageFullTextForAnno(page);
-    for(const a of (annotations[page]||[]).slice())entries.push({page,a,text:(full?full.slice(a.start,a.end):'').trim().replace(/\s+/g,' ')||'（此頁文字無法取得）'});
+    for(const a of (annotations[page]||[]).slice())entries.push({page,a,text:(a.quote||(full?full.slice(a.start,a.end):'')).trim().replace(/\s+/g,' ')||'（此頁文字無法取得）'});
   }
   if(myToken!==annotationListToken||!list.isConnected)return;
   entries.sort((x,y)=>x.page-y.page||x.a.start-y.a.start);
@@ -3895,7 +3962,7 @@ async function exportVocabCSV(){
       if(!full)continue;
       for(const a of annotations[p]){
         if(a.type!=='h')continue;
-        const word=full.slice(a.start,a.end).trim().replace(/\s+/g,' ');
+        const word=(a.quote||full.slice(a.start,a.end)).trim().replace(/\s+/g,' ');
         if(!word)continue;
         const ctx=findContextSentence(full,a.start,a.end);
         rows.push([word,String(p),ctx,a.note||'']);
@@ -3917,7 +3984,7 @@ async function exportNotesMarkdown(){
       const full=await getPageFullTextForAnno(p);
       md+='## 第 '+p+' 頁\n\n';
       for(const a of annotations[p]){
-        const text=full?full.slice(a.start,a.end).trim().replace(/\s+/g,' '):'（此頁文字無法取得）';
+        const text=(a.quote||(full?full.slice(a.start,a.end):'')).trim().replace(/\s+/g,' ')||'（此頁文字無法取得）';
         md+= (a.type==='h' ? '- 🖍 **'+text+'**\n' : '- ✏️ '+text+'\n');
         if(a.note) md+='  > 📝 '+a.note.replace(/\n/g,'\n  > ')+'\n';
       }
@@ -4213,6 +4280,7 @@ async function enterReflowMode(){
     $('shapeSel').style.display=''; $('shapeSel').value=flowPageShape;
     flowRawBlocks=blocks; flowPages=pages; flowToc=headingMap; reflowPageToPdf=pageToPdf;
     totalPages=flowPages.length;
+    loadAnno();loadBookmarks();remapFlowAnchors();
     let startIdx=1;
     for(let i=0;i<pageToPdf.length;i++){ if(pageToPdf[i]<=savedPdfState.curPage) startIdx=i+1; else break; }
     curPage=Math.max(1,Math.min(totalPages,startIdx));
@@ -4233,6 +4301,7 @@ async function exitReflowMode(){
   curPage=Math.max(1,Math.min(totalPages,srcPage));
   if(viewMode==='spread'&&curPage%2===0&&curPage>1)curPage--;
   reflowMode=false; savedPdfState=null;
+  loadAnno();loadBookmarks();
   resetSearchIndex(); imgCache.clear();
   $('reflowBtn').classList.remove('on'); $('reflowBtn').title='切換成大字流式排版（重排模式）';
   await paintBook(); await detectScanned(); buildTOC();
@@ -4319,6 +4388,8 @@ function openElderMenu(){
   html+=tile('📒','查看劃記','marks');
   html+=tile('↶','撤銷劃記','undo');
   html+=tile('🌙','睡眠播放','sleep');
+  html+=tile('繁','簡體轉繁體','s2t');
+  html+='</div><div class="m-row"><label for="elderSleepSel">睡眠時間</label><select id="elderSleepSel">'+$('sleepSel').innerHTML+'</select></div><div class="m-grid">';
   html+='</div><div class="m-sheet-sec">高對比主題</div><div class="m-grid">';
   html+=tile('☀️','白天','theme-day',readerTheme==='day');
   html+=tile('📜','米黃','theme-sepia',readerTheme==='sepia');
@@ -4326,6 +4397,8 @@ function openElderMenu(){
   html+=tile('⚙️','完整模式','full');
   html+='</div>';
   $('mSheetTitle').textContent='更多'; $('mSheetBody').innerHTML=html;
+  $('elderSleepSel').value=$('sleepSel').value;
+  $('elderSleepSel').onchange=()=>{$('sleepSel').value=$('elderSleepSel').value;$('sleepSel').dispatchEvent(new Event('change'));};
   $('mSheet').style.display='block'; $('mSheetBg').style.display='block'; $('mSheetBg').onclick=closeElderMenu;
   $('mSheetBody').querySelectorAll('[data-elder-act]').forEach(btn=>btn.onclick=()=>{
     const act=btn.dataset.elderAct;
@@ -4334,7 +4407,8 @@ function openElderMenu(){
     else if(act==='mark'){ setTouchMarkMode(!touchMarkMode); closeElderMenu(); }
     else if(act==='marks'){ closeElderMenu(); switchDrawerTab('anno'); openDrawer(); }
     else if(act==='undo'){ undoLastAnnotation(); openElderMenu(); }
-    else if(act==='sleep'){ closeElderMenu(); $('sleepBgBtn').click(); }
+    else if(act==='sleep'){closeElderMenu();if($('sleepSel').value==='0')$('sleepSel').value='30';$('sleepBgBtn').click();}
+    else if(act==='s2t'){closeElderMenu();$('s2tToggle')?.click();}
     else if(act.startsWith('theme-')){ applyReaderTheme(act.slice(6),true); openElderMenu(); }
     else if(act==='full'){ closeElderMenu(); setElderMode(false); }
   });
@@ -4527,6 +4601,6 @@ syncElderUi();
 syncControls();
 </script>
 <!-- 增強外掛（PWA 圖示＋朗讀完整單字高亮）；改版時保留這一行即可，邏輯都在外部檔案 -->
-<script src="reader-enhance.js?v=12"></script>
+<script src="reader-enhance.js?v=2026.10.07.1"></script>
 </body>
 </html>
