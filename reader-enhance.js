@@ -551,4 +551,48 @@
       });
     };
   })();
+
+  /* ---------- 13) 工具列在中等視窗寬度不再擠爆 ----------
+   * 主程式只有手機（≤640px）的工具列規則；中等寬度時按鈕被壓縮，中文標籤逐字換行、撐出按鈕框
+   * （「開啟PDF」「護眼模式」被拆成三行）。這裡：按鈕一律不換行、不被壓縮，改由檔名欄吸收空間並顯示
+   * 「…」；再自動判斷——文字標籤放得下就顯示，放不下（或檔名剩不到 100px）就只顯示圖示（滑過仍有
+   * title 提示）。會依視窗大小、以及「辨識文字／重排模式」等按鈕的出現或隱藏即時調整；萬一仍放不下，
+   * 工具列可橫向滑動，任何按鈕都不會被切掉。 */
+  (function(){
+    const st=document.createElement('style');
+    st.setAttribute('data-reader-enhance','toolbar-fit');
+    st.textContent=
+      '.topbar>*,.bottombar .btn,.bottombar .seg{flex-shrink:0}'
+     +'.topbar .btn,.topbar .btn .t,.topbar .seg .btn,.bottombar .btn,.bottombar .btn .t{white-space:nowrap}'
+     +'.topbar .filename{flex:1 1 0;min-width:0;max-width:none}'
+     +'.topbar{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}'
+     +'.topbar::-webkit-scrollbar{display:none}'
+     +'.topbar.tb-compact .btn .ico~.t{display:none}'
+     +'.topbar.tb-compact .brand span.t{display:none}';
+    (document.head||document.documentElement).appendChild(st);
+    let tmr=0;
+    function fit(){
+      tmr=0;
+      const bar=document.querySelector('.topbar');
+      if(!bar||getComputedStyle(bar).display==='none') return;
+      bar.classList.remove('tb-compact');                       // 先試著顯示完整文字標籤
+      const fn=document.getElementById('filename');
+      const hasName=!!(fn&&fn.textContent.trim()&&getComputedStyle(fn).display!=='none');
+      const fnW=fn?fn.getBoundingClientRect().width:0;
+      if(bar.scrollWidth>bar.clientWidth+1 || (hasName&&fnW<100)) bar.classList.add('tb-compact');
+    }
+    const schedule=()=>{ if(!tmr) tmr=setTimeout(fit,40); };   // 用 setTimeout（rAF 在背景分頁會暫停）
+    function init(){
+      const bar=document.querySelector('.topbar'); if(!bar) return;
+      window.addEventListener('resize',schedule);
+      try{ new ResizeObserver(schedule).observe(bar); }catch(e){}
+      // 按鈕顯示/隱藏（style）、檔名變更（文字）時重新判斷；只看 style 屬性，不會因切換 class 而無限循環
+      try{ new MutationObserver(schedule).observe(bar,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['style','hidden','disabled']}); }catch(e){}
+      document.addEventListener('visibilitychange',schedule);
+      // 保險：若某些環境沒送出 resize 事件，定時檢查到「已溢出」就切成只顯示圖示（只會收合，不會閃爍）
+      setInterval(()=>{ if(!bar.classList.contains('tb-compact') && getComputedStyle(bar).display!=='none' && bar.scrollWidth>bar.clientWidth+1) schedule(); },1500);
+      schedule();
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
 })();
