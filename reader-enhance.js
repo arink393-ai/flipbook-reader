@@ -595,4 +595,64 @@
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
   })();
+
+  /* ---------- 14) 文字濃淡：讓掃描頁的黑字變深 ----------
+   * 掃描書的字常是灰灰淡淡的（墨色本來就淡、或掃描曝光偏亮）。這裡對頁面 canvas 與翻頁動畫快照套
+   * 「色階」濾鏡：以白點 w 為準把亮度拉成 v'=k(v−w)+1——白底維持白、灰字被壓成黑字。用 CSS 的
+   * brightness()+contrast() 組合實作（GPU 加速，iPhone Safari 也順）：
+   *   cb=k、0.5−0.5c=1−kw  ⇒  c=2kw−1、b=k/c。
+   * EPUB/Word 等文字頁（字本身就是畫面）則用極細描邊加粗字形，不改變排版（不會重新分頁）。
+   * 選擇會記住；桌面在下方列「標示」旁，手機在「選單」的主題區下方。 */
+  (function(){
+    const LEVELS=[                                  // [標籤, 白點 w, 斜率 k, EPUB 描邊 px]
+      ['原始',  1.00,1.0,0   ],
+      ['深一點',0.96,1.5,0.15],
+      ['深',    0.94,2.0,0.3 ],
+      ['很深',  0.92,2.6,0.45],
+      ['最深',  0.90,3.3,0.6 ]
+    ];
+    const KEY='reader_ink';
+    let lvl=2; try{ const v=localStorage.getItem(KEY); if(v!==null) lvl=Math.max(0,Math.min(LEVELS.length-1,parseInt(v,10)||0)); }catch(e){}
+    const st=document.createElement('style'); st.setAttribute('data-reader-enhance','ink');
+    (document.head||document.documentElement).appendChild(st);
+    function css(i){
+      const [,w,k,stroke]=LEVELS[i];
+      if(i===0) return '';
+      const c=2*k*w-1, b=k/c;
+      const f='brightness('+b.toFixed(3)+') contrast('+c.toFixed(3)+')';
+      return 'body.re-pdf .leaf canvas,body.re-pdf .turn .face img{filter:'+f+'}'
+           + '.textLayer.flowtext{-webkit-text-stroke:'+stroke+'px currentColor}';
+    }
+    function apply(i,save){
+      lvl=i; st.textContent=css(i);
+      if(save){ try{ localStorage.setItem(KEY,String(i)); }catch(e){} }
+      document.querySelectorAll('#inkSel,#mInkSel').forEach(s=>{ s.value=String(i); });
+    }
+    const optsHTML=()=>LEVELS.map((L,i)=>'<option value="'+i+'"'+(i===lvl?' selected':'')+'>字濃：'+L[0]+'</option>').join('');
+    // 只對 PDF 套頁面濾鏡（EPUB 的翻頁快照含插圖，不該被拉高對比）
+    function syncDocType(){ let t=''; try{ t=docType; }catch(e){} document.body.classList.toggle('re-pdf',t==='pdf'); }
+    function mountDesktop(){
+      if(document.getElementById('inkSel')) return;
+      const anchor=document.getElementById('hlSel'); if(!anchor) return;
+      const sel=document.createElement('select'); sel.className='sel'; sel.id='inkSel'; sel.title='文字濃淡（讓掃描頁的字變深）';
+      sel.innerHTML=optsHTML(); sel.onchange=()=>apply(parseInt(sel.value,10)||0,true);
+      anchor.insertAdjacentElement('afterend',sel);
+    }
+    function mountMobile(){
+      const body=document.getElementById('mSheetBody'); if(!body||document.getElementById('mInkSel')) return;
+      const tile=body.querySelector('[data-act="theme-day"]'); if(!tile) return;
+      const grid=tile.closest('.m-grid')||tile.parentElement;
+      const row=document.createElement('div'); row.className='m-row';
+      row.innerHTML='<label>文字濃淡</label><select id="mInkSel">'+optsHTML()+'</select>';
+      grid.insertAdjacentElement('afterend',row);
+      const s=row.querySelector('select'); s.onchange=()=>apply(parseInt(s.value,10)||0,true);
+    }
+    function init(){
+      apply(lvl,false); syncDocType(); mountDesktop(); mountMobile();
+      setInterval(syncDocType,1000);
+      const mb=document.getElementById('mSheetBody');
+      if(mb){ try{ new MutationObserver(mountMobile).observe(mb,{childList:true}); }catch(e){} }
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
 })();
