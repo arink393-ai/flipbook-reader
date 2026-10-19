@@ -233,6 +233,7 @@
   .textLayer.flowtext h1{font-size:1.55em} .textLayer.flowtext h2{font-size:1.28em} .textLayer.flowtext h3{font-size:1.1em}
   .textLayer.flowtext p,.textLayer.flowtext blockquote,.textLayer.flowtext li{margin:0 0 14px}
   .textLayer.flowtext blockquote{padding-left:14px;border-left:3px solid var(--brass);color:#4a4740;font-style:italic}
+  body.theme-night .textLayer.flowtext blockquote{color:#c9d1d9}   /* 夜間：原本的深灰字在深色底上幾乎看不見（EPUB 引言、簡報講者備註） */
   .textLayer.flowtext img{max-width:100%;max-height:calc(100% - 20px);object-fit:contain;display:block;margin:6px auto 14px;border-radius:4px}
   .textLayer.flowtext.img-only{display:flex;align-items:center;justify-content:center;padding:20px}
   .textLayer.flowtext.img-only img{max-height:100%;max-width:100%;margin:0}
@@ -524,7 +525,7 @@
     </select>
     <button class="btn" id="fsBtn" title="全螢幕"><span class="ico">⛶</span></button>
     <button class="btn" id="helpBtn" title="鍵盤快捷鍵"><span class="ico">⌨</span></button>
-    <input type="file" id="fileInput" accept=".pdf,.docx,.epub,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0">
+    <input type="file" id="fileInput" accept=".pdf,.docx,.epub,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0">
     <!-- 註：不能用 hidden / display:none —— iOS Safari 會拒絕對隱藏的檔案輸入框觸發選檔視窗 -->
     <input type="file" id="summaryFileInput" accept=".md,.json,.txt,text/markdown,application/json,text/plain" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0">
   </div>
@@ -588,7 +589,7 @@
       <div class="drop" id="drop">
         <div class="big">📖</div>
         <h1>開啟一本書來閱讀</h1>
-        <p>支援 PDF、Word（.docx）、EPUB。把檔案拖進來，或按下方按鈕選擇。<br>書籍保存在此瀏覽器；使用雲端朗讀或翻譯時，相關文字會傳送至所選服務。<br><small>版本 2026.10.07.1</small></p>
+        <p>支援 PDF、Word（.docx）、EPUB、PowerPoint 簡報（.pptx）。把檔案拖進來，或按下方按鈕選擇。<br>書籍保存在此瀏覽器；使用雲端朗讀或翻譯時，相關文字會傳送至所選服務。<br><small>版本 2026.10.07.1</small></p>
         <button class="btn primary open" id="openBtnFirstRun"><span class="ico">📂</span> 選擇檔案</button>
         <div class="hint">真實書本翻頁 · 放大縮小 · 選取文字即時翻譯<br>鍵盤：← → 翻頁　·　Ctrl + / − 縮放　·　拖曳可平移放大後的頁面</div>
       </div>
@@ -795,7 +796,7 @@ $('openBtn').onclick=openPicker; $('openBtn2').onclick=openPicker; $('openBtnFir
 $('fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(f)openAnyFile(f);});
 ['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();if(ev==='dragleave'&&e.relatedTarget)return;drop.classList.remove('over');}));
-document.addEventListener('drop',e=>{e.preventDefault();const f=[...(e.dataTransfer?.files||[])].find(x=>/\.(pdf|docx|epub)$/i.test(x.name||''));if(f)openAnyFile(f);else if(e.dataTransfer?.files?.length)toast('請拖入 PDF、Word（.docx）或 EPUB 檔案');});
+document.addEventListener('drop',e=>{e.preventDefault();const f=[...(e.dataTransfer?.files||[])].find(x=>/\.(pdf|docx|epub|pptx|ppt)$/i.test(x.name||''));if(f)openAnyFile(f);else if(e.dataTransfer?.files?.length)toast('請拖入 PDF、Word（.docx）、EPUB 或 PowerPoint（.pptx）檔案');});
 
 function extOf(name){ const m=/\.([a-z0-9]+)$/i.exec(name||''); return m?m[1].toLowerCase():''; }
 let loadToken=0;   // 每次開檔動作的序號，避免上一次還沒載入完就被下一次開檔打斷、兩邊互相汙染全域狀態
@@ -804,6 +805,8 @@ async function openAnyFile(file,fromLib=false){
   const ext=extOf(file.name);
   if(ext==='docx') return loadFlowFile(file,'docx',fromLib);
   if(ext==='epub') return loadFlowFile(file,'epub',fromLib);
+  if(ext==='pptx') return loadFlowFile(file,'pptx',fromLib);
+  if(ext==='ppt'){ toast('舊版 .ppt 格式瀏覽器無法讀取，請在 PowerPoint／Keynote 另存為 .pptx 或 PDF 後再開啟'); return; }
   return loadFile(file,fromLib);          // 預設當 PDF 處理
 }
 
@@ -860,6 +863,10 @@ async function loadFlowFile(file,kind,fromLib=false){
       if(myToken!==loadToken)return;
       const res=await mammoth.convertToHtml({arrayBuffer:buf});
       blocks=htmlToBlocks(res.value);
+    }else if(kind==='pptx'){
+      if(!window.JSZip){toast('簡報轉換引擎載入失敗，請確認已連上網路');return;}
+      const r=await convertPptx(file);
+      blocks=r.blocks;
     }else{
       if(!window.JSZip){toast('EPUB 引擎載入失敗，請確認已連上網路');return;}
       const r=await convertEpub(file);
@@ -871,7 +878,7 @@ async function loadFlowFile(file,kind,fromLib=false){
     flowRawBlocks=blocks;
     fileKey='pg_'+file.name+'_'+file.size;
     loadAnno(); loadBookmarks(); resetSearchIndex(); loadSummaryForBook();
-    detectedFlowShape=detectFlowShape(blocks);
+    detectedFlowShape=kind==='pptx'?'landscape':detectFlowShape(blocks);   // 投影片一律用橫式頁面
     if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); if(flowFontScale<1.35)setFlowFontScale(1.35); }
     showLoading('正在為「'+file.name+'」分頁…');
     const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
@@ -1014,6 +1021,158 @@ async function convertEpub(file){
   }
   return {blocks};
 }
+/* ---------- PowerPoint（.pptx：zip 內含每張投影片的 XML）----------
+   每張投影片從新的一頁開始（標題成為目錄章節）；文字依畫面位置由上而下、由左而右排序；
+   項目符號保留層級；表格逐列；夠大的圖片保留（小 logo 略過）；講者備註接在該張後面；隱藏投影片略過。 */
+async function convertPptx(file){
+  const zip=await JSZip.loadAsync(file);
+  const read=async p=>{ const f=p&&zip.file(p); return f? await f.async('text') : null; };
+  const parse=x=>new DOMParser().parseFromString(x,'application/xml');
+  const kids=(el,name)=>el?[...el.children].filter(c=>c.localName===name):[];
+  const kid=(el,name)=>kids(el,name)[0]||null;
+  const desc=(el,name)=>el?[...el.getElementsByTagNameNS('*',name)]:[];
+  const R_NS='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const rAttr=(el,name)=>el?(el.getAttributeNS(R_NS,name)||el.getAttribute('r:'+name)):null;
+  const resolve=(dir,target)=>{ try{ return decodeURIComponent(new URL(target,'https://x/'+dir).pathname.replace(/^\//,'')); }catch(e){ return null; } };
+  async function relsOf(path){
+    const dir=path.slice(0,path.lastIndexOf('/')+1), base=path.slice(path.lastIndexOf('/')+1);
+    const x=await read(dir+'_rels/'+base+'.rels'); const map={};
+    if(x) desc(parse(x),'Relationship').forEach(r=>{ map[r.getAttribute('Id')]={target:r.getAttribute('Target')||'',type:r.getAttribute('Type')||'',external:r.getAttribute('TargetMode')==='External'}; });
+    return {map,dir};
+  }
+  const presXml=await read('ppt/presentation.xml');
+  if(!presXml) throw new Error('找不到 presentation.xml，這可能不是有效的 PowerPoint（.pptx）檔');
+  const pres=parse(presXml);
+  const sz=desc(pres,'sldSz')[0];
+  const slideW=+(sz&&sz.getAttribute('cx'))||12192000, slideH=+(sz&&sz.getAttribute('cy'))||6858000;
+  const presRels=await relsOf('ppt/presentation.xml');
+  const slidePaths=desc(pres,'sldId').map(s=>{ const r=presRels.map[rAttr(s,'id')]; return r&&!r.external?resolve(presRels.dir,r.target):null; }).filter(Boolean);
+
+  // 一段 a:p 的純文字（a:t、欄位、換行）
+  const paraText=p=>{ let t=''; for(const c of p.children){ if(c.localName==='r'||c.localName==='fld'){ t+=desc(c,'t').map(x=>x.textContent).join(''); } else if(c.localName==='br'){ t+=' '; } } return t.replace(/\s+/g,' ').trim(); };
+  const xfrmOf=el=>{ const x=el&&(desc(el,'xfrm')[0]); const off=x&&kid(x,'off'), ext=x&&kid(x,'ext');
+    return off?{x:+off.getAttribute('x')||0,y:+off.getAttribute('y')||0,cx:ext?(+ext.getAttribute('cx')||0):0,cy:ext?(+ext.getAttribute('cy')||0):0}:null; };
+  const SKIP_PH=/^(dt|ftr|sldNum|hdr|sldImg)$/;
+
+  async function imageBlock(rels,rid){
+    const r=rels.map[rid]; if(!r||r.external) return null;
+    const path=resolve(rels.dir,r.target); const mime=guessImageMime(path);
+    if(!mime) return null;                                       // EMF/WMF 等瀏覽器不能顯示的格式略過
+    const f=zip.file(path); if(!f) return null;
+    let blob=await f.async('blob'); if(blob.type!==mime){ try{ blob=blob.slice(0,blob.size,mime); }catch(e){} }
+    const b={type:'img',src:await blobToDataURL(blob)};
+    let dim=null;
+    try{ if(typeof createImageBitmap==='function'){ const bmp=await createImageBitmap(blob); if(bmp&&bmp.width&&bmp.height)dim={w:bmp.width,h:bmp.height}; if(bmp&&bmp.close)bmp.close(); } }catch(e){}
+    if(!dim) dim=await imgNaturalSize(b.src);
+    if(dim&&dim.w&&dim.h){ b.w0=dim.w; b.h0=dim.h; }
+    return b;
+  }
+
+  // 收集一張投影片上的所有物件（含群組內），帶位置以便排序
+  function collect(tree,map,items){
+    for(const el of tree.children){
+      const name=el.localName;
+      if(name==='grpSp'){
+        const g=kid(el,'grpSpPr'); const gx=g&&kid(g,'xfrm');
+        const off=gx&&kid(gx,'off'), ext=gx&&kid(gx,'ext'), chOff=gx&&kid(gx,'chOff'), chExt=gx&&kid(gx,'chExt');
+        const T=(off&&ext&&chOff&&chExt&&+chExt.getAttribute('cx')&&+chExt.getAttribute('cy'))?{
+          ox:+off.getAttribute('x'),oy:+off.getAttribute('y'),
+          sx:+ext.getAttribute('cx')/+chExt.getAttribute('cx'), sy:+ext.getAttribute('cy')/+chExt.getAttribute('cy'),
+          cx:+chOff.getAttribute('x'), cy:+chOff.getAttribute('y')}:null;
+        const sub=[]; collect(el,map,sub);
+        sub.forEach(it=>{ if(T&&it.pos){ it.pos={x:T.ox+(it.pos.x-T.cx)*T.sx, y:T.oy+(it.pos.y-T.cy)*T.sy, cx:it.pos.cx*T.sx, cy:it.pos.cy*T.sy}; } items.push(it); });
+        continue;
+      }
+      if(name==='sp'){
+        const nv=kid(el,'nvSpPr'), ph=nv&&desc(nv,'ph')[0];
+        const phType=ph?(ph.getAttribute('type')||'body'):'';
+        if(phType&&SKIP_PH.test(phType)) continue;
+        const tb=kid(el,'txBody'); if(!tb) continue;
+        const paras=kids(tb,'p').map(p=>{ const pPr=kid(p,'pPr');
+          return {text:paraText(p), lvl:pPr?(+pPr.getAttribute('lvl')||0):0,
+                  buNone:!!(pPr&&kid(pPr,'buNone')), bu:!!(pPr&&(kid(pPr,'buChar')||kid(pPr,'buAutoNum')))}; }).filter(x=>x.text);
+        if(!paras.length) continue;
+        let pos=xfrmOf(kid(el,'spPr'));
+        if(!pos) pos={x:0,y:(phType==='title'||phType==='ctrTitle')?0:(phType==='subTitle'?slideH*0.45:slideH*0.25),cx:slideW,cy:0};
+        items.push({kind:'text',phType,paras,pos});
+      }else if(name==='pic'){
+        const blip=desc(el,'blip')[0], rid=rAttr(blip,'embed'); const pos=xfrmOf(kid(el,'spPr'));
+        if(rid) items.push({kind:'img',rid,pos});
+      }else if(name==='graphicFrame'){
+        const tbl=desc(el,'tbl')[0]; const pos=xfrmOf(el);
+        if(tbl){
+          const rows=desc(tbl,'tr').map(tr=>desc(tr,'tc').map(tc=>desc(tc,'p').map(paraText).filter(Boolean).join(' ')).filter(Boolean).join(' ｜ ')).filter(Boolean);
+          if(rows.length) items.push({kind:'table',rows,pos});
+        }
+      }
+    }
+  }
+
+  // 第一階段：解析每張投影片（標題、依位置排序的物件、講者備註）
+  const slides=[];
+  for(const sp of slidePaths){
+    const xml=await read(sp); if(!xml) continue;
+    const doc=parse(xml), root=doc.documentElement;
+    if(root.getAttribute('show')==='0') continue;               // 隱藏投影片不讀
+    const rels=await relsOf(sp);
+    const tree=desc(doc,'spTree')[0]; const items=[];
+    if(tree) collect(tree,rels.map,items);
+    // 由上而下、同一列由左而右（同一列的容差：投影片高度的 4%）
+    const rowTol=slideH*0.04;
+    items.sort((a,b)=>{ const ay=a.pos?a.pos.y:0, by=b.pos?b.pos.y:0; if(Math.abs(ay-by)>rowTol) return ay-by; return (a.pos?a.pos.x:0)-(b.pos?b.pos.x:0); });
+    // 標題：標題版面配置優先；否則取最上方、字數少的文字方塊
+    let titleIdx=items.findIndex(it=>it.kind==='text'&&/^(title|ctrTitle)$/.test(it.phType));
+    if(titleIdx<0){
+      titleIdx=items.findIndex(it=>it.kind==='text'&&it.paras.length<=2&&it.paras.map(p=>p.text).join(' ').length<=80&&(!it.pos||it.pos.y<slideH*0.35));
+      if(titleIdx>0 && items.slice(0,titleIdx).some(it=>it.kind==='text')) titleIdx=-1;   // 上面還有別的文字就不硬認
+    }
+    let title='';
+    if(titleIdx>=0){ title=items[titleIdx].paras.map(p=>p.text).join(' '); items.splice(titleIdx,1); }
+    let note='';
+    const noteRel=Object.values(rels.map).find(r=>/notesSlide$/.test(r.type));
+    if(noteRel){
+      const nxml=await read(resolve(rels.dir,noteRel.target));
+      if(nxml){
+        const ndoc=parse(nxml); const parts=[];
+        desc(ndoc,'sp').forEach(s=>{ const ph=desc(s,'ph')[0]; if(!ph||(ph.getAttribute('type')||'body')!=='body') return;
+          const tb=kid(s,'txBody'); if(tb) kids(tb,'p').map(paraText).filter(Boolean).forEach(t=>parts.push(t)); });
+        note=parts.join(' ').trim();
+      }
+    }
+    slides.push({title,items,rels,note});
+  }
+  // 頁尾判斷：在多數投影片都出現的同一段短文字（講者姓名、學號、課程名…），以及純頁碼
+  const freq=new Map();
+  slides.forEach(sl=>{ const seen=new Set(); sl.items.forEach(it=>{ if(it.kind==='text') it.paras.forEach(p=>{ if(p.text.length<=60&&!seen.has(p.text)){ seen.add(p.text); freq.set(p.text,(freq.get(p.text)||0)+1); } }); }); });
+  const repeatMin=Math.max(3,Math.ceil(slides.length*0.5));
+  const isFooter=t=>/^\d+(\s*[\/／]\s*\d+)?$/.test(t) || (slides.length>=3 && (freq.get(t)||0)>=repeatMin);
+  // 第二階段：輸出區塊
+  const blocks=[]; let n=0;
+  for(const sl of slides){
+    n++;
+    blocks.push({type:'h2',text:sl.title||('投影片 '+n),breakBefore:true});
+    for(const it of sl.items){
+      if(it.kind==='text'){
+        const bodyPh=/^(body|obj)$/.test(it.phType);
+        for(const p of it.paras){
+          if(isFooter(p.text)) continue;
+          if(it.phType==='subTitle'){ blocks.push({type:'p',text:p.text}); continue; }
+          const bullet=(bodyPh&&!p.buNone)||p.bu;
+          if(bullet){ const mark=['• ','◦ ','▪ '][Math.min(2,p.lvl)]; blocks.push({type:'li',text:'　'.repeat(Math.min(3,p.lvl))+mark+p.text}); }
+          else blocks.push({type:'p',text:p.text});
+        }
+      }else if(it.kind==='table'){
+        it.rows.forEach(r=>blocks.push({type:'p',text:r}));
+      }else if(it.kind==='img'){
+        const area=it.pos?(it.pos.cx*it.pos.cy)/(slideW*slideH):1;
+        if(area<0.12) continue;                                  // 小圖（logo、圖示）略過
+        try{ const b=await imageBlock(sl.rels,it.rid); if(b) blocks.push(b); }catch(e){}
+      }
+    }
+    if(sl.note) blocks.push({type:'blockquote',text:'講者備註：'+sl.note});
+  }
+  return {blocks,slideCount:n};
+}
 function guessImageMime(path){
   const m=/\.([a-z0-9]+)(?:\?.*)?$/i.exec(path||'');
   const ext=m?m[1].toLowerCase():'';
@@ -1139,6 +1298,7 @@ async function paginateBlocks(blocks,cancelCheck){
       updateLoadingProgress(pct);
     }
     const blk=queue.shift();
+    if(blk.breakBefore && buffer.length){ pages.push(buffer); buffer=[]; bufHTML=''; }   // 簡報：每張投影片從新的一頁開始
     // 大圖獨佔一頁：先把目前累積的內容收尾成一頁，這張圖自己一頁，後面內容從新的一頁開始。
     // 估法與 blockToHTML(forMeasure) 一致，否則兩邊對不上。
     if(blk.type==='img'){
@@ -1231,13 +1391,13 @@ async function makeCover(fileNameForFlow){
       ctx.fillStyle='#efe6d6'; ctx.fillRect(0,0,200,266);
       ctx.fillStyle='#d6a14a'; ctx.fillRect(0,0,200,8);
       ctx.fillStyle='#1a1300'; ctx.font='bold 13px Georgia,serif';
-      const title=(fileNameForFlow||'').replace(/\.(docx|epub)$/i,'');
+      const title=(fileNameForFlow||'').replace(/\.(docx|epub|pptx)$/i,'');
       const words=title.split(/\s+/); let line='',y=110,lines=[];
       words.forEach(w=>{ const test=line?line+' '+w:w; if(ctx.measureText(test).width>168){lines.push(line);line=w;}else line=test; });
       if(line)lines.push(line);
       lines.slice(0,6).forEach((l,i)=>ctx.fillText(l,16,y+i*18));
       ctx.fillStyle='#9c7a3a'; ctx.font='11px sans-serif';
-      ctx.fillText(fileNameForFlow&&/\.epub$/i.test(fileNameForFlow)?'EPUB':'DOCX',16,246);
+      ctx.fillText(/\.epub$/i.test(fileNameForFlow||'')?'EPUB':(/\.pptx$/i.test(fileNameForFlow||'')?'PPTX 簡報':'DOCX'),16,246);
       return cv.toDataURL('image/jpeg',0.85);
     }
     const page=await pdfDoc.getPage(1);
