@@ -2,6 +2,10 @@
 
 版本：2026.10.07.1。`index.html`、`reader-core.js`、`reader-enhance.js` 是唯一維護來源；GitHub Pages 直接提供這三份檔案。
 
+## 支援格式
+
+PDF（含掃描書 OCR）、Word（.docx）、EPUB、PowerPoint（.pptx）。簡報每張投影片從新的一頁開始，標題（或首句）列入目錄並編號；文字依投影片上的位置由上而下、由左而右；支援項目符號層級、表格、SmartArt 文字、較大的圖片與講者備註（標為「講者備註」並一同朗讀）；隱藏投影片、頁碼與多數投影片重複的頁尾會略過。舊版 .ppt 需先另存為 .pptx 或 PDF。
+
 ## 本機單檔
 
 `npm run build:standalone -- /absolute/path/閱讀器.html` 會把兩個本機 JS 內嵌成單一 HTML。第一次覆寫會保留 `.backup-before-2026.10.07` 備份。不要再分別修改網站與輸出檔。書庫/筆記仍在原瀏覽器的 IndexedDB/localStorage，並不隨 HTML 檔案跨裝置同步。

@@ -232,6 +232,7 @@
   .textLayer.flowtext h1,.textLayer.flowtext h2,.textLayer.flowtext h3{font-family:var(--font);color:#1a1300;line-height:1.35;margin:0 0 14px}
   .textLayer.flowtext h1{font-size:1.55em} .textLayer.flowtext h2{font-size:1.28em} .textLayer.flowtext h3{font-size:1.1em}
   .textLayer.flowtext p,.textLayer.flowtext blockquote,.textLayer.flowtext li{margin:0 0 14px}
+  .textLayer.flowtext li{list-style:none}   /* 項目文字本身已帶「•」；不加這行瀏覽器會再畫一個圓點（EPUB、簡報都會雙點） */
   .textLayer.flowtext blockquote{padding-left:14px;border-left:3px solid var(--brass);color:#4a4740;font-style:italic}
   body.theme-night .textLayer.flowtext blockquote{color:#c9d1d9}   /* 夜間：原本的深灰字在深色底上幾乎看不見（EPUB 引言、簡報講者備註） */
   .textLayer.flowtext img{max-width:100%;max-height:calc(100% - 20px);object-fit:contain;display:block;margin:6px auto 14px;border-radius:4px}
@@ -855,7 +856,7 @@ async function loadFlowFile(file,kind,fromLib=false){
   const myToken=++loadToken;                 // 防止載入到一半又被另一次開檔動作打斷、兩邊互相汙染全域狀態
   showLoading('正在轉換「'+file.name+'」…');
   try{
-    docType='pdf'; // 先暫時保持，成功後再切換，避免中途出錯時狀態卡在 flow
+    // 不在這裡先改 docType：解析失敗時要保留「目前正在看的那本書」的狀態（原本會被改成 pdf，導致正在讀的 EPUB／簡報壞掉）
     let blocks=[];
     if(kind==='docx'){
       if(!window.mammoth){toast('Word 轉換引擎載入失敗，請確認已連上網路');return;}
@@ -905,7 +906,14 @@ async function loadFlowFile(file,kind,fromLib=false){
     buildTOC();
     if(!fromLib && $('autoSaveChk').checked) saveToLibrary(file);
     else if(fromLib) libTouch(fileKey);
-  }catch(err){console.error(err);toast('無法開啟這個檔案：'+(err?.message||err));}
+  }catch(err){
+    console.error(err);
+    const m=String(err?.message||err||'');
+    const label=kind==='pptx'?'PowerPoint（.pptx）':(kind==='epub'?'EPUB':'Word（.docx）');
+    toast(/central directory|zip|corrupt|Unexpected|invalid/i.test(m)
+      ? '無法開啟：這個檔案可能已損毀，或不是有效的 '+label+' 檔'
+      : '無法開啟這個檔案：'+m);
+  }
   finally{ if(myToken===loadToken) hideLoading(); }
 }
 
@@ -1100,6 +1108,8 @@ async function convertPptx(file){
         if(rid) items.push({kind:'img',rid,pos});
       }else if(name==='graphicFrame'){
         const tbl=desc(el,'tbl')[0]; const pos=xfrmOf(el);
+        const dgm=desc(el,'relIds')[0];                           // SmartArt 圖形：文字在 diagrams/dataN.xml
+        if(dgm&&rAttr(dgm,'dm')){ items.push({kind:'smartart',rid:rAttr(dgm,'dm'),pos}); continue; }
         if(tbl){
           const rows=desc(tbl,'tr').map(tr=>desc(tr,'tc').map(tc=>desc(tc,'p').map(paraText).filter(Boolean).join(' ')).filter(Boolean).join(' ｜ ')).filter(Boolean);
           if(rows.length) items.push({kind:'table',rows,pos});
@@ -1117,6 +1127,16 @@ async function convertPptx(file){
     const rels=await relsOf(sp);
     const tree=desc(doc,'spTree')[0]; const items=[];
     if(tree) collect(tree,rels.map,items);
+    for(const it of items){
+      if(it.kind!=='smartart') continue;
+      const r=rels.map[it.rid]; const dxml=r&&!r.external?await read(resolve(rels.dir,r.target)):null;
+      it.lines=[];
+      if(dxml){
+        const ddoc=parse(dxml);
+        desc(ddoc,'pt').forEach(pt=>{ const t=pt.getAttribute('type')||'node'; if(t!=='node'&&t!=='asst') return;
+          const line=desc(pt,'p').map(paraText).filter(Boolean).join(' '); if(line) it.lines.push(line); });
+      }
+    }
     // 由上而下、同一列由左而右（同一列的容差：投影片高度的 4%）
     const rowTol=slideH*0.04;
     items.sort((a,b)=>{ const ay=a.pos?a.pos.y:0, by=b.pos?b.pos.y:0; if(Math.abs(ay-by)>rowTol) return ay-by; return (a.pos?a.pos.x:0)-(b.pos?b.pos.x:0); });
@@ -1150,7 +1170,8 @@ async function convertPptx(file){
   const blocks=[]; let n=0;
   for(const sl of slides){
     n++;
-    blocks.push({type:'h2',text:sl.title||('投影片 '+n),breakBefore:true});
+    const head={type:'h2',text:sl.title||('投影片 '+n),breakBefore:true};
+    blocks.push(head); const firstIdx=blocks.length;
     for(const it of sl.items){
       if(it.kind==='text'){
         const bodyPh=/^(body|obj)$/.test(it.phType);
@@ -1163,6 +1184,8 @@ async function convertPptx(file){
         }
       }else if(it.kind==='table'){
         it.rows.forEach(r=>blocks.push({type:'p',text:r}));
+      }else if(it.kind==='smartart'){
+        (it.lines||[]).forEach(t=>{ if(!isFooter(t)) blocks.push({type:'li',text:'• '+t}); });
       }else if(it.kind==='img'){
         const area=it.pos?(it.pos.cx*it.pos.cy)/(slideW*slideH):1;
         if(area<0.12) continue;                                  // 小圖（logo、圖示）略過
@@ -1170,6 +1193,14 @@ async function convertPptx(file){
       }
     }
     if(sl.note) blocks.push({type:'blockquote',text:'講者備註：'+sl.note});
+    // 目錄顯示：每張加編號；沒標題的投影片改用該張第一句內容，免得一長串「投影片 N」分不清
+    let label=sl.title;
+    if(!label){
+      const first=blocks.slice(firstIdx).find(b=>b.type!=='img'&&b.text&&!/^講者備註：/.test(b.text));
+      label=first?first.text.replace(/^[\s　•◦▪]+/,''):(blocks.slice(firstIdx).some(b=>b.type==='img')?'（圖片）':'（無文字）');
+      if(label.length>26) label=label.slice(0,26)+'…';
+    }
+    head.tocLabel=n+'. '+label;
   }
   return {blocks,slideCount:n};
 }
@@ -1339,7 +1370,7 @@ async function paginateBlocks(blocks,cancelCheck){
   if(buffer.length) pages.push(buffer);
   headingMap.length=0;
   pages.forEach((blks,i)=>{ blks.forEach(b=>{ if(b.type==='h1'||b.type==='h2'||b.type==='h3'){
-    headingMap.push({title:b.text,level:b.type==='h1'?0:(b.type==='h2'?1:2),page:i+1});
+    headingMap.push({title:b.tocLabel||b.text,level:b.type==='h1'?0:(b.type==='h2'?1:2),page:i+1});   // tocLabel：目錄另用的顯示文字（簡報加編號）
   }});});
   return {pages,headingMap};
 }
