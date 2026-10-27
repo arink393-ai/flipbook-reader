@@ -150,8 +150,11 @@
           r.addedNodes && r.addedNodes.forEach(node=>{
             if(node.nodeType===3){ const tl=node.parentElement&&node.parentElement.closest&&node.parentElement.closest('.textLayer'); if(tl)convertNode(node); }
             else if(node.nodeType===1){
-              if(node.closest && node.closest('.textLayer')) convertTree(node);
-              else convertTree(node);   // node 可能自身或子孫含 .textLayer
+              if(node.closest && node.closest('.textLayer')){
+                // 新增的是文字層「內部」的元素（如 pdf.js 逐一 append 的 span）：直接轉它底下的文字節點
+                const w=document.createTreeWalker(node,NodeFilter.SHOW_TEXT,null); let t;
+                while(t=w.nextNode()) convertNode(t);
+              }else convertTree(node);   // node 自身或子孫含 .textLayer
             }
           });
         }
