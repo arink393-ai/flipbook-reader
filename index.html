@@ -879,7 +879,7 @@ async function loadFlowFile(file,kind,fromLib=false){
     flowRawBlocks=blocks;
     fileKey='pg_'+file.name+'_'+file.size;
     loadAnno(); loadBookmarks(); resetSearchIndex(); loadSummaryForBook();
-    detectedFlowShape=kind==='pptx'?'landscape':detectFlowShape(blocks);   // 投影片一律用橫式頁面
+    detectedFlowShape=kind==='pptx'?'slides':detectFlowShape(blocks);   // 投影片：依螢幕方向決定（見 effectiveFlowShape）
     if(elderMode){ viewMode='continuous'; lsSet('reader_view','continuous'); if(flowFontScale<1.35)setFlowFontScale(1.35); }
     showLoading('正在為「'+file.name+'」分頁…');
     const {pages,headingMap,cancelled}=await paginateBlocks(blocks.slice(),()=>myToken!==loadToken);
@@ -1239,7 +1239,11 @@ function detectFlowShape(blocks){
   // 圖片平均偏寬、而且大部分圖片都偏寬（不是只有一兩張跨頁圖），才判斷整本書適合橫式頁面
   return (avg>1.2 && wideCount/ratios.length>0.55) ? 'landscape' : 'portrait';
 }
-function effectiveFlowShape(){ return flowPageShape==='auto' ? detectedFlowShape : flowPageShape; }
+function effectiveFlowShape(){
+  // 簡報（slides）：橫向螢幕用橫式頁面；直立的手機改用直式，否則一張投影片會被切成十幾頁矮矮的頁面
+  const auto=detectedFlowShape==='slides' ? ((stage.clientWidth>=stage.clientHeight)?'landscape':'portrait') : detectedFlowShape;
+  return flowPageShape==='auto' ? auto : flowPageShape;
+}
 function pageSideGap(){ return (IS_MOBILE&&viewMode==='continuous') ? 16 : 90; }
 function flowPageSize(){
   const availW=stage.clientWidth-pageSideGap(), availH=stage.clientHeight-60;
@@ -2167,7 +2171,7 @@ setFlowFontScale(flowFontScale);
 $('shapeSel').value=flowPageShape;
 $('shapeSel').onchange=async()=>{
   flowPageShape=$('shapeSel').value; lsSet('reader_flow_shape',flowPageShape);
-  if(docType==='flow'&&flowRawBlocks.length){ await repaginateFlow(); toast('頁面形狀：'+(flowPageShape==='auto'?'自動（偵測為'+(detectedFlowShape==='landscape'?'橫式':'直式')+'）':(flowPageShape==='landscape'?'橫式':'直式'))); }
+  if(docType==='flow'&&flowRawBlocks.length){ await repaginateFlow(); toast('頁面形狀：'+(flowPageShape==='auto'?'自動（偵測為'+(effectiveFlowShape()==='landscape'?'橫式':'直式')+'）':(flowPageShape==='landscape'?'橫式':'直式'))); }
 };
 let flowZoomT=0;
 async function applyFlowZoom(delta){
@@ -4792,6 +4796,6 @@ syncElderUi();
 syncControls();
 </script>
 <!-- 增強外掛（PWA 圖示＋朗讀完整單字高亮）；改版時保留這一行即可，邏輯都在外部檔案 -->
-<script src="reader-enhance.js?v=2026.10.07.3"></script>
+<script src="reader-enhance.js?v=2026.10.07.4"></script>
 </body>
 </html>

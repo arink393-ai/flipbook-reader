@@ -176,23 +176,24 @@
       stopObserver(); revertVisible();
     }
 
-    function updateBtn(){ if(!btn)return; btn.classList.toggle('on',enabled);
-      btn.setAttribute('aria-pressed',enabled?'true':'false');
-      btn.title=enabled?'簡體→繁體：開啟中（點按關閉）':'把簡體字轉成繁體（點按開啟）'; }
+    function updateBtn(){
+      if(btn){ btn.classList.toggle('on',enabled); btn.setAttribute('aria-pressed',enabled?'true':'false');
+        btn.title=enabled?'簡體→繁體：開啟中（點按關閉）':'把簡體字轉成繁體（點按開啟）'; }
+      const tile=document.getElementById('mS2tTile'); if(tile) tile.classList.toggle('on',enabled);
+    }
+    window.__readerS2T={ isOn:()=>enabled, toggle:()=>{ enabled?disable():enable(); } };
     function mkBtn(){
-      const st=document.createElement('style');
-      st.textContent='#s2tToggle{position:fixed;left:10px;top:calc(58px + env(safe-area-inset-top,0px));z-index:43;'
-        +'font:600 13px/1 var(--font,system-ui,sans-serif);padding:8px 11px;border-radius:999px;'
-        +'border:1px solid rgba(214,161,74,.55);background:rgba(28,32,38,.72);color:#e8c98f;cursor:pointer;'
-        +'-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);box-shadow:0 2px 8px rgba(0,0,0,.3);'
-        +'-webkit-user-select:none;user-select:none;touch-action:manipulation;opacity:.9}'
-        +'#s2tToggle:hover{opacity:1}'
-        +'#s2tToggle.on{background:rgba(214,161,74,.95);color:#20242b;border-color:rgba(214,161,74,.95);opacity:1}';
-      document.head.appendChild(st);
-      btn=document.createElement('button');
-      btn.id='s2tToggle'; btn.type='button'; btn.textContent='簡→繁';
+      // 電腦版：放進上方工具列「護眼模式」旁（以前是浮在頁面左上角，會擋到頁面）；
+      // 手機版：按鈕隱藏，改由 ☰ 選單裡的「簡→繁」磚塊操作（見第 16 段）
+      btn=document.createElement('button'); btn.id='s2tToggle'; btn.type='button';
       btn.addEventListener('click',()=>{ enabled?disable():enable(); });
-      document.body.appendChild(btn);
+      const elder=document.getElementById('elderBtn');
+      if(!document.body.classList.contains('m-ui') && elder){
+        btn.className='btn'; btn.innerHTML='<span class="ico">繁</span><span class="t">簡→繁</span>';
+        elder.insertAdjacentElement('afterend',btn);
+      }else{
+        btn.style.display='none'; document.body.appendChild(btn);
+      }
       updateBtn();
     }
     function init(){ mkBtn(); if(enabled) enable(); }
@@ -275,24 +276,14 @@
         else if(typeof startSleepBackground==='function') startSleepBackground();
       }catch(e){}
     }
+    window.__readerBg={ start, isOn:bgOn };
     function mkBtn(){
-      const st=document.createElement('style');
-      st.textContent='#bgReadToggle{position:fixed;left:10px;top:calc(102px + env(safe-area-inset-top,0px));z-index:43;'
-        +'font:600 13px/1 var(--font,system-ui,sans-serif);padding:8px 11px;border-radius:999px;'
-        +'border:1px solid rgba(120,180,240,.5);background:rgba(28,32,38,.72);color:#bcd6f5;cursor:pointer;'
-        +'-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);box-shadow:0 2px 8px rgba(0,0,0,.3);'
-        +'-webkit-user-select:none;user-select:none;touch-action:manipulation;opacity:.9}'
-        +'body:not(.has-doc) #bgReadToggle,body.home-open #bgReadToggle,body.elder-mode #bgReadToggle{display:none}'
-        +'body:not(.has-doc) #s2tToggle,body.home-open #s2tToggle,body.elder-mode #s2tToggle{display:none}'
-        +'#bgReadToggle:hover{opacity:1}'
-        +'#bgReadToggle.on{background:rgba(120,180,240,.95);color:#10151c;border-color:rgba(120,180,240,.95);opacity:1}';
-      document.head.appendChild(st);
+      // 不再浮在頁面上：電腦版下方工具列本來就有「睡眠背景播放」；手機版改由 ☰ 選單的「背景朗讀」磚塊啟動（第 16 段）
       btn=document.createElement('button');
-      btn.id='bgReadToggle'; btn.type='button'; btn.textContent='🎧 背景';
+      btn.id='bgReadToggle'; btn.type='button'; btn.textContent='🎧 背景'; btn.style.display='none';
       btn.title='一鍵背景朗讀：把接下來的內容做成連續音檔，切換 App／鎖屏也不停（需用「手機自然語音」）';
       btn.addEventListener('click', start);
       document.body.appendChild(btn);
-      setInterval(()=>{ try{ btn.classList.toggle('on', bgOn()); btn.textContent=bgOn()?'🎧 背景中':'🎧 背景'; }catch(e){} }, 700);
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mkBtn); else mkBtn();
   })();
@@ -654,5 +645,129 @@
       if(mb){ try{ new MutationObserver(mountMobile).observe(mb,{childList:true}); }catch(e){} }
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
+
+  /* ---------- 15) 下方工具列自動收納：放不下時把次要設定收進「朗讀設定」面板 ----------
+   * 中等寬度（例如 1180px）時下方工具列太擠，頁碼框、頁面滑桿、⚙ 會跑到畫面外看不到，
+   * 甚至能把整個介面往左推歪。這裡：全部放得下就照舊排在工具列上；放不下時，把定時、睡眠背景、
+   * 譯源、語音來源、語速、語音、標示顏色、文字濃淡、進階設定移進一個彈出面板（元素本身直接搬移，
+   * 原本的功能與設定值都不變），朗讀、停止、翻譯、頁碼、滑桿永遠留在工具列上。 */
+  (function(){
+    const ITEMS=[['engineSel','語音來源'],['voiceSel','語音'],['rateSel','語速'],['trSourceBar','翻譯來源'],
+                 ['sleepSel','睡眠定時'],['hlSel','標示顏色'],['inkSel','文字濃淡'],['sleepBgBtn',''],['ttsGear','']];
+    let bar,panel,moreBtn,compact=false,tmr=0;
+    const st=document.createElement('style'); st.setAttribute('data-reader-enhance','bottombar-fit');
+    st.textContent=
+      '.bottombar .slider{min-width:150px}'
+     +'.bottombar{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.bottombar::-webkit-scrollbar{display:none}'
+     +'.bottombar>*{flex-shrink:0}.bottombar .slider{flex:1 1 150px}'
+     +'#bbPanel{position:fixed;right:12px;bottom:66px;z-index:65;display:none;grid-template-columns:auto minmax(170px,1fr);'
+     +  'gap:9px 12px;align-items:center;padding:14px 16px;min-width:300px;max-width:calc(100vw - 24px);'
+     +  'max-height:calc(100vh - 150px);overflow:auto;background:#13161c;color:var(--ink);border:1px solid var(--bar-line);'
+     +  'border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.55)}'
+     +'#bbPanel.open{display:grid}'
+     +'#bbPanel h4{grid-column:1/-1;margin:0 0 2px;font-size:13px;color:var(--brass-hi)}'
+     +'#bbPanel label{font-size:12.5px;color:var(--ink-dim);white-space:nowrap}'
+     +'#bbPanel .sel{width:100%;max-width:none}'
+     +'#bbPanel .bb-actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}'
+     +'body.theme-day #bbPanel{background:#fff;color:#101820}body.theme-sepia #bbPanel{background:#3d3325;color:#fffaf0}'
+     +'#bbMoreBtn.open{background:var(--brass);color:#1a1300;border-color:var(--brass)}';
+    (document.head||document.documentElement).appendChild(st);
+    const els=()=>ITEMS.map(([id,label])=>({id,label,el:document.getElementById(id)})).filter(x=>x.el);
+    function setCompact(on){
+      if(on===compact) return; compact=on;
+      if(on){
+        panel.innerHTML='<h4>朗讀設定</h4>'; const actions=document.createElement('div'); actions.className='bb-actions';
+        els().forEach(({id,label,el})=>{
+          if(!label){ actions.appendChild(el); return; }
+          const l=document.createElement('label'); l.textContent=label; l.htmlFor=id;
+          panel.appendChild(l); panel.appendChild(el);
+        });
+        panel.appendChild(actions); moreBtn.style.display='';
+      }else{
+        els().forEach(({id,el})=>{ const a=bar.querySelector('[data-bb-anchor="'+id+'"]'); if(a) a.parentNode.insertBefore(el,a); });
+        panel.classList.remove('open'); moreBtn.classList.remove('open'); moreBtn.style.display='none'; panel.innerHTML='';
+      }
+    }
+    function fit(){
+      tmr=0;
+      if(!bar||document.body.classList.contains('m-ui')||getComputedStyle(bar).display==='none') return;
+      const wasOpen=panel.classList.contains('open');
+      setCompact(false);                                      // 先試著全部放回工具列
+      if(bar.scrollWidth>bar.clientWidth+1){ setCompact(true); if(wasOpen){ panel.classList.add('open'); moreBtn.classList.add('open'); } }
+    }
+    const schedule=()=>{ if(!tmr) tmr=setTimeout(fit,60); };
+    function init(){
+      bar=document.querySelector('.bottombar'); if(!bar||document.body.classList.contains('m-ui')) return;
+      els().forEach(({id,el})=>{ const a=document.createElement('span'); a.hidden=true; a.setAttribute('data-bb-anchor',id); el.parentNode.insertBefore(a,el); });
+      moreBtn=document.createElement('button'); moreBtn.className='btn'; moreBtn.id='bbMoreBtn'; moreBtn.type='button';
+      moreBtn.title='朗讀設定（語音、語速、翻譯來源、定時、標示顏色、文字濃淡）'; moreBtn.style.display='none';
+      moreBtn.innerHTML='<span class="ico">🎚</span><span class="t">朗讀設定</span>';
+      const tr=document.getElementById('transToggle'); (tr||document.getElementById('stopBtn')).insertAdjacentElement('afterend',moreBtn);
+      panel=document.createElement('div'); panel.id='bbPanel'; document.body.appendChild(panel);
+      moreBtn.addEventListener('click',e=>{ e.stopPropagation(); const o=!panel.classList.contains('open'); panel.classList.toggle('open',o); moreBtn.classList.toggle('open',o); });
+      document.addEventListener('click',e=>{ if(panel.classList.contains('open')&&!panel.contains(e.target)&&e.target!==moreBtn){ panel.classList.remove('open'); moreBtn.classList.remove('open'); } });
+      document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&panel.classList.contains('open')){ panel.classList.remove('open'); moreBtn.classList.remove('open'); } });
+      window.addEventListener('resize',schedule);
+      try{ new MutationObserver(schedule).observe(document.getElementById('chapterTimeBox')||bar,{childList:true,characterData:true,subtree:true}); }catch(e){}
+      setInterval(()=>{ if(!compact&&bar.scrollWidth>bar.clientWidth+1) schedule(); },1500);   // 保險：某些環境不送 resize
+      schedule();
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
+
+  /* ---------- 16) 手機選單：簡→繁、背景朗讀 ----------
+   * 以前這兩個功能是浮在頁面左上角的按鈕，在手機上會蓋住頁面。改放進 ☰ 選單（與主題、文字濃淡同一個面板）。 */
+  (function(){
+    function mount(){
+      const body=document.getElementById('mSheetBody'); if(!body||document.getElementById('mExtraGrid')) return;
+      if(!body.querySelector('[data-act="theme-day"]')) return;            // 只放在主選單
+      const sec=document.createElement('div'); sec.className='m-sheet-sec'; sec.textContent='其他';
+      const grid=document.createElement('div'); grid.className='m-grid'; grid.id='mExtraGrid';
+      const s2tOn=!!(window.__readerS2T&&window.__readerS2T.isOn());
+      const bgOn=!!(window.__readerBg&&window.__readerBg.isOn());
+      grid.innerHTML='<button class="m-tile'+(s2tOn?' on':'')+'" id="mS2tTile" type="button"><span class="em">繁</span>簡體轉繁體</button>'
+                    +'<button class="m-tile'+(bgOn?' on':'')+'" id="mBgTile" type="button"><span class="em">🎧</span>'+(bgOn?'背景朗讀中':'背景朗讀')+'</button>';
+      body.appendChild(sec); body.appendChild(grid);
+      grid.querySelector('#mS2tTile').onclick=()=>{ if(window.__readerS2T){ window.__readerS2T.toggle(); } };
+      grid.querySelector('#mBgTile').onclick=()=>{ const bg=document.getElementById('mSheetBg'); if(bg) bg.click(); if(window.__readerBg) window.__readerBg.start(); };
+    }
+    function init(){
+      if(!document.body.classList.contains('m-ui')) return;
+      const mb=document.getElementById('mSheetBody'); if(!mb) return;
+      try{ new MutationObserver(mount).observe(mb,{childList:true}); }catch(e){}
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
+
+  /* ---------- 17) PDF 翻頁加速＋控制記憶體：空閒時預先畫好前後頁，只保留附近幾頁的快取 ----------
+   * 翻頁動畫需要「下一頁／下下頁」的整頁圖片，主程式是翻頁當下才臨時畫（掃描書每頁約 0.6~1 秒），
+   * 所以按下一頁要等 2~3 秒。這裡在每次畫完頁面後，利用空閒時間預先把前後頁畫進快取，翻頁就能直接用。
+   * 另外快取原本只增不減（讀整本 300 頁的掃描書會累積數十 MB 圖片，手機可能因記憶體不足重新整理），
+   * 這裡只保留目前頁前後 8 頁。只作用於 PDF 的單頁／雙頁模式。 */
+  (function(){
+    if(typeof window.paintBook!=='function'||typeof window.pageImage!=='function') return;
+    const origPaint=window.paintBook; let gen=0;
+    const idle=()=>new Promise(r=>{ if(window.requestIdleCallback) requestIdleCallback(()=>r(),{timeout:600}); else setTimeout(r,60); });
+    async function prefetch(myGen){
+      let st; try{ st={doc:docType,pdf:pdfDoc,mode:viewMode,cur:curPage,total:totalPages,anim:animating,scale:currentScale}; }catch(e){ return; }
+      if(st.doc!=='pdf'||!st.pdf||st.mode==='continuous') return;
+      if(st.anim){ setTimeout(()=>{ if(myGen===gen) prefetch(myGen); },250); return; }   // 翻頁動畫還沒結束，稍後再試
+      const spread=st.mode==='spread'&&st.total>1;
+      const want=spread?[st.cur+2,st.cur+3,st.cur-1,st.cur-2]:[st.cur+1,st.cur-1];
+      for(const i of want){
+        if(myGen!==gen) return;                                   // 使用者又翻頁／縮放了，以新的位置為準
+        if(i<1||i>st.total||imgCache.has(i)) continue;
+        await idle(); if(myGen!==gen) return;
+        try{ await pageImage(i); }catch(e){}
+        try{ if(currentScale!==st.scale) imgCache.delete(i); }catch(e){}   // 期間縮放過：這張尺寸已過期
+      }
+      try{ for(const k of [...imgCache.keys()]) if(Math.abs(k-curPage)>8) imgCache.delete(k); }catch(e){}
+    }
+    window.paintBook=async function(){
+      const r=await origPaint.apply(this,arguments);
+      const my=++gen; setTimeout(()=>{ if(my===gen) prefetch(my); },150);
+      return r;
+    };
   })();
 })();

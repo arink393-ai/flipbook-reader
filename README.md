@@ -14,6 +14,7 @@ PDF（含掃描書 OCR）、Word（.docx）、EPUB、PowerPoint（.pptx）。簡
 
 - `npm test`：語言分段、聲音排序、快取去重/釋放、文字錨點、MP3 完整音框裁切、Worker 額度及失敗流程。
 - `node tests/browser-smoke.cjs`：需 Playwright、Chrome、JSZip；可用 `NODE_PATH` 指向已安裝套件。測試使用自製 EPUB 與模擬系統語音，不會把使用者書籍送至雲端。
+- `node tests/ui-audit.cjs [真實書檔...]`：全面介面檢查（同 Playwright 需求）。在桌面 1440、筆電 1180、手機 390 三種尺寸下開啟每個檔案（另自動產生一本 EPUB），檢查執行錯誤、按鈕文字溢出、控制項跑出畫面、浮動元件蓋住頁面、翻頁速度、目錄、搜尋與朗讀標示；截圖與 report.json 輸出到 `test-results/audit/`（不進版控，書檔只在本機使用）。
 - 瀏覽器測試不能取代手機實際鎖屏測試，亦不代表所有系統語音都具相同音質。
 
 ## 語音
