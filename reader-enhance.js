@@ -909,4 +909,10 @@
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
   })();
+  /* 18) 標題不要左右對齊拉開：窄螢幕（手機）上兩行的標題會被撐出大空隙（如 "Vagueness      and hedging"） */
+  (function(){
+    const st=document.createElement('style');
+    st.textContent='.textLayer.flowtext h1,.textLayer.flowtext h2,.textLayer.flowtext h3,.textLayer.flowtext h4,.textLayer.flowtext h5,.textLayer.flowtext h6{text-align:left;text-align-last:left}';
+    document.head.appendChild(st);
+  })();
 })();
