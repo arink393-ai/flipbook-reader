@@ -7,6 +7,7 @@ const {pathToFileURL}=require('node:url');
     const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(()=>{
+      try{localStorage.setItem('reader_coach_v1','1');}catch(e){}   // skip the one-time gesture guide (it intercepts taps)
       const voices=[{name:'Samantha enhanced',lang:'en-US',voiceURI:'en'},{name:'Meijia',lang:'zh-TW',voiceURI:'zh'}];
       window.__speechCalls=[];window.__resumeCount=0;
       const synth=new EventTarget();synth.getVoices=()=>voices;synth.speaking=false;synth.paused=false;

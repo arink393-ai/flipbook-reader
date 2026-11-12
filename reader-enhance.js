@@ -770,4 +770,143 @@
       return r;
     };
   })();
+
+  /* ---------- 18) 空白鍵＝開始朗讀／暫停／繼續 ----------
+   * 影音播放最直覺的按鍵。焦點在輸入框、選單或按鈕上時不攔截（保留它們原本的空白鍵行為）。 */
+  (function(){
+    window.addEventListener('keydown',e=>{
+      if(e.key!==' '||e.ctrlKey||e.metaKey||e.altKey||e.repeat) return;
+      const t=e.target;
+      if(t&&(/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(t.tagName)||t.isContentEditable)) return;
+      if(document.querySelector('.modal-bg[style*="flex"]')) return;      // 有對話框開著
+      let st; try{ if(!docLoaded()) return; st={reading:reading,paused:paused}; }catch(err){ return; }
+      e.preventDefault();
+      try{ if(st.reading&&!st.paused) pauseReading(); else resumeReading(); }catch(err){}
+    });
+  })();
+
+  /* ---------- 19) 目錄：標出「你現在在這裡」並顯示每章頁碼 ----------
+   * 打開目錄時，自動捲到並標示目前所在的章節；每個章節右側顯示頁碼，方便判斷遠近。 */
+  (function(){
+    const st=document.createElement('style'); st.setAttribute('data-reader-enhance','toc-here');
+    st.textContent=
+      '.toc-link{display:flex;justify-content:space-between;align-items:baseline;gap:10px}'
+     +'.toc-link .toc-pg{flex:0 0 auto;font-size:11px;font-weight:400;color:var(--ink-dim);opacity:.85;font-variant-numeric:tabular-nums}'
+     +'.toc-link.here{box-shadow:inset 3px 0 0 var(--brass);background:rgba(214,161,74,.12);font-weight:700;color:var(--brass-hi)}'
+     +'.toc-link.here .toc-pg::before{content:"目前 · "}';
+    (document.head||document.documentElement).appendChild(st);
+    function decorate(scroll){
+      let flat,cur; try{ flat=tocFlat; cur=curPage; }catch(e){ return; }
+      const list=document.getElementById('tocList'); if(!list||!flat||!flat.length) return;
+      const links=[...list.querySelectorAll('.toc-link')]; if(!links.length) return;
+      const byTitle=new Map();
+      flat.forEach(t=>{ const k=String(t.title||'').trim(); if(!byTitle.has(k)) byTitle.set(k,[]); byTitle.get(k).push(t.page); });
+      const used=new Map(); let best=null,bestPage=-1;
+      links.forEach(l=>{
+        if(l.dataset.tocTitle===undefined) l.dataset.tocTitle=l.textContent.trim();
+        const k=l.dataset.tocTitle, arr=byTitle.get(k); const i=used.get(k)||0; used.set(k,i+1);
+        const pg=arr?arr[Math.min(i,arr.length-1)]:null;
+        let tag=l.querySelector('.toc-pg');
+        if(pg){ if(!tag){ tag=document.createElement('span'); tag.className='toc-pg'; l.appendChild(tag); } tag.textContent=pg;
+                if(pg<=cur&&pg>=bestPage){ best=l; bestPage=pg; } }
+        l.classList.remove('here');
+      });
+      if(best){ best.classList.add('here'); if(scroll){ try{ best.scrollIntoView({block:'center'}); }catch(e){} } }
+    }
+    function init(){
+      if(typeof window.openDrawer==='function'){
+        const orig=window.openDrawer;
+        window.openDrawer=function(){ const r=orig.apply(this,arguments); setTimeout(()=>decorate(true),30); return r; };
+      }
+      const list=document.getElementById('tocList'); let t=0;
+      if(list){ try{ new MutationObserver(()=>{ clearTimeout(t); t=setTimeout(()=>decorate(false),120); }).observe(list,{childList:true}); }catch(e){} }
+      // 掃描書的目錄是非同步算出來的：抽屜開著時每秒補一次（很便宜）
+      setInterval(()=>{ const d=document.getElementById('drawer'); if(d&&d.classList.contains('open')&&list&&list.style.display!=='none') decorate(false); },1200);
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
+
+  /* ---------- 20) 電腦版：滑鼠移到工具列按鈕上，立刻顯示說明 ----------
+   * 筆電寬度下工具列只顯示圖示；瀏覽器內建的提示要停 1~2 秒才出現、字又小。改成 0.2 秒就出現的
+   * 清楚提示（原本的 title 文字移作提示內容，並保留為無障礙標籤）。觸控裝置不啟用。 */
+  (function(){
+    function init(){
+      if(document.body.classList.contains('m-ui')||!window.matchMedia||!window.matchMedia('(hover:hover)').matches) return;
+      const st=document.createElement('style'); st.setAttribute('data-reader-enhance','tips');
+      st.textContent='#uiTip{position:fixed;z-index:90;pointer-events:none;max-width:280px;padding:6px 10px;border-radius:8px;'
+        +'background:#0b0e13;color:#fff;border:1px solid #52606f;font:500 12.5px/1.45 var(--font,system-ui,sans-serif);'
+        +'box-shadow:0 8px 22px rgba(0,0,0,.45);opacity:0;transition:opacity .12s;white-space:normal}'
+        +'#uiTip.show{opacity:1}';
+      document.head.appendChild(st);
+      const tip=document.createElement('div'); tip.id='uiTip'; tip.setAttribute('role','tooltip'); document.body.appendChild(tip);
+      let cur=null,timer=0;
+      const hide=()=>{ clearTimeout(timer); tip.classList.remove('show'); cur=null; };
+      function show(el){
+        const text=el.dataset.tip; if(!text||!el.isConnected) return;
+        tip.textContent=text; tip.style.left='0px'; tip.style.top='0px'; tip.classList.add('show');
+        const r=el.getBoundingClientRect(), tw=tip.offsetWidth, th=tip.offsetHeight;
+        const below=r.top<innerHeight/2;
+        const left=Math.max(8,Math.min(innerWidth-tw-8,r.left+r.width/2-tw/2));
+        tip.style.left=left+'px'; tip.style.top=(below?r.bottom+8:r.top-th-8)+'px';
+      }
+      document.addEventListener('mouseover',e=>{
+        const el=e.target.closest&&e.target.closest('.topbar [title],.bottombar [title],.topbar [data-tip],.bottombar [data-tip],.nav-arrow[title],.nav-arrow[data-tip]');
+        if(el===cur) return; hide(); if(!el) return;
+        const t=el.getAttribute('title');
+        if(t){ el.dataset.tip=t; el.removeAttribute('title'); if(!el.getAttribute('aria-label')||el.dataset.tipAria==='1'){ el.setAttribute('aria-label',t); el.dataset.tipAria='1'; } }
+        if(!el.dataset.tip) return;
+        cur=el; timer=setTimeout(()=>{ if(cur===el) show(el); },200);
+      });
+      document.addEventListener('mousedown',hide,true); document.addEventListener('keydown',hide,true);
+      window.addEventListener('blur',hide); window.addEventListener('scroll',hide,true);
+      document.documentElement.addEventListener('mouseleave',hide);
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
+
+  /* ---------- 21) 手機：第一次開書時的手勢教學＋首頁改顯示觸控說明 ----------
+   * 手機介面很乾淨，但「點左右翻頁、點中間收起工具列」沒有任何提示，新使用者不知道。
+   * 第一次開書時顯示一次半透明教學（點一下就消失，之後不再出現）；首頁的「鍵盤快捷鍵」說明在手機上改成觸控說明。 */
+  (function(){
+    const KEY='reader_coach_v1';
+    function coach(){
+      let mode='single'; try{ mode=viewMode; }catch(e){}
+      const cont=mode==='continuous';
+      const st=document.createElement('style'); st.setAttribute('data-reader-enhance','coach');
+      st.textContent='#coach{position:fixed;inset:0;z-index:75;background:rgba(8,10,14,.82);color:#fff;display:flex;flex-direction:column;'
+        +'font-family:var(--font,system-ui,sans-serif);-webkit-tap-highlight-color:transparent}'
+        +'#coach .cz{flex:1;display:flex;min-height:0}'
+        +'#coach .cz>div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:10px;font-size:15px;font-weight:700;line-height:1.5}'
+        +'#coach .cz .s{flex:0 0 28%}#coach .cz .m{flex:1;border-left:1.5px dashed rgba(255,255,255,.45);border-right:1.5px dashed rgba(255,255,255,.45)}'
+        +'#coach .cz .em{font-size:34px;line-height:1}#coach small{display:block;font-size:12px;font-weight:400;opacity:.85}'
+        +'#coach .cf{padding:14px 18px calc(22px + env(safe-area-inset-bottom,0px));text-align:center;font-size:13px;line-height:1.9;border-top:1px solid rgba(255,255,255,.2)}'
+        +'#coach button{margin-top:10px;padding:11px 34px;border-radius:999px;border:0;background:#ffd166;color:#1a1300;font-size:15px;font-weight:800}';
+      document.head.appendChild(st);
+      const el=document.createElement('div'); el.id='coach'; el.setAttribute('role','dialog'); el.setAttribute('aria-label','操作說明');
+      el.innerHTML='<div class="cz">'
+        +(cont?'<div class="m" style="border:0"><span class="em">↕</span>上下滑動閱讀<small>點一下畫面中間：顯示／收起上下工具列</small></div>'
+              :'<div class="s"><span class="em">‹</span>點左側<small>上一頁</small></div>'
+               +'<div class="m"><span class="em">☝</span>點中間<small>顯示／收起<br>上下工具列</small></div>'
+               +'<div class="s"><span class="em">›</span>點右側<small>下一頁</small></div>')
+        +'</div><div class="cf">🔊 左下角：開始朗讀<br>☰ 左上角：目錄、主題、字體等全部功能<br>兩指開合：放大縮小　·　長按文字：翻譯／劃記'
+        +'<br><button type="button">知道了</button></div>';
+      const close=()=>{ try{ localStorage.setItem(KEY,'1'); }catch(e){} el.remove(); };
+      el.addEventListener('click',close);
+      document.body.appendChild(el);
+    }
+    function init(){
+      if(!document.body.classList.contains('m-ui')) return;
+      const hint=document.querySelector('#empty .hint');
+      if(hint) hint.innerHTML='真實書本翻頁 · 朗讀 · 選取文字即時翻譯<br>點畫面左右兩側翻頁　·　兩指開合縮放　·　☰ 選單有全部功能';
+      let seen=false; try{ seen=localStorage.getItem(KEY)==='1'; }catch(e){}
+      if(seen) return;
+      const iv=setInterval(()=>{
+        const b=document.body;
+        if(!b.classList.contains('has-doc')||b.classList.contains('home-open')||b.classList.contains('elder-mode')) return;
+        const ld=document.getElementById('loading'); if(ld&&ld.style.display&&ld.style.display!=='none') return;
+        clearInterval(iv); setTimeout(coach,500);
+      },700);
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  })();
 })();

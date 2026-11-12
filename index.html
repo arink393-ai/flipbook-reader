@@ -30,6 +30,10 @@
   select,input[type=range]{touch-action:manipulation}
 
   /* 三種高對比閱讀主題 */
+  /* 手機上下工具列底色原本寫死成深色；白天主題的字是深色，會變成深字配深底看不見 */
+  body.theme-day .m-topbar,body.theme-day .m-botbar{background:rgba(255,255,255,.94)}
+  body.theme-day .m-playbar{background:rgba(255,255,255,.98)}
+  body.theme-day .m-iconbtn:active{background:rgba(0,0,0,.08)}
   body.theme-day{--stage:#e7edf3;--bar:#fff;--bar-line:#263341;--ink:#101820;--ink-dim:#344454;--paper:#fff;--brass:#8a5700;--brass-hi:#674100;--sel:rgba(180,118,0,.32)}
   body.theme-sepia{--stage:#cbb991;--bar:#3d3325;--bar-line:#8e7952;--ink:#fffaf0;--ink-dim:#ead9ba;--paper:#f6edd9;--brass:#ffd166;--brass-hi:#ffe29a;--sel:rgba(173,111,0,.32)}
   body.theme-night{--stage:#151920;--bar:#0d1117;--bar-line:#52606f;--ink:#fff;--ink-dim:#c6d0da;--paper:#121820;--brass:#ffd166;--brass-hi:#ffe29a;--sel:rgba(255,209,102,.40)}
@@ -716,6 +720,7 @@
       <h3>鍵盤快捷鍵</h3>
       <table class="kbd-table">
         <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>上一頁／下一頁</td></tr>
+        <tr><td><kbd>空白鍵</kbd></td><td>開始朗讀／暫停／繼續</td></tr>
         <tr><td><kbd>Ctrl/⌘</kbd> + <kbd>+</kbd> / <kbd>−</kbd></td><td>放大／縮小（PDF）</td></tr>
         <tr><td><kbd>Ctrl/⌘</kbd> + 滾輪</td><td>縮放（PDF）</td></tr>
         <tr><td><kbd>B</kbd></td><td>書籤／取消書籤目前這頁</td></tr>
@@ -998,6 +1003,10 @@ async function convertEpub(file){
     const path=opfDir+item.href;
     const f=zip.file(path); if(!f)continue;
     let html; try{ html=await f.async('text'); }catch(e){ continue; }
+    // XHTML 允許 <title/>、<script/>、<a id="x"/> 這類自閉合寫法，但 HTML 解析器會把它們當成「開始標籤」，
+    // <title/> 甚至會把整章內文吞成標題文字（Sigil 製作的書很常見，結果整本只剩封面一頁）。先展開成成對標籤。
+    html=html.replace(/<([a-zA-Z][\w:-]*)((?:\s+[^<>\/]*(?:"[^"]*"|'[^']*')?)*)\s*\/>/g,(m,tag,attrs)=>
+      /^(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr|image|use|path|rect|circle|line|polygon|polyline|ellipse|stop)$/i.test(tag)?m:'<'+tag+attrs+'></'+tag+'>');
     const chapDoc=new DOMParser().parseFromString(html,'text/html');
     const before=blocks.length;
     (chapDoc.body||chapDoc).childNodes.forEach(n=>walkBlockNode(n,blocks));
@@ -1241,7 +1250,9 @@ function detectFlowShape(blocks){
 }
 function effectiveFlowShape(){
   // 簡報（slides）：橫向螢幕用橫式頁面；直立的手機改用直式，否則一張投影片會被切成十幾頁矮矮的頁面
-  const auto=detectedFlowShape==='slides' ? ((stage.clientWidth>=stage.clientHeight)?'landscape':'portrait') : detectedFlowShape;
+  // 自動模式一律配合螢幕方向：寬圖多的書／簡報在直立手機上若硬用橫式，一頁只放得下兩三行（一本書被切成八千多頁）
+  const wide=stage.clientWidth>=stage.clientHeight;
+  const auto=(detectedFlowShape==='slides'||detectedFlowShape==='landscape') ? (wide?'landscape':'portrait') : detectedFlowShape;
   return flowPageShape==='auto' ? auto : flowPageShape;
 }
 function pageSideGap(){ return (IS_MOBILE&&viewMode==='continuous') ? 16 : 90; }
@@ -4796,6 +4807,6 @@ syncElderUi();
 syncControls();
 </script>
 <!-- 增強外掛（PWA 圖示＋朗讀完整單字高亮）；改版時保留這一行即可，邏輯都在外部檔案 -->
-<script src="reader-enhance.js?v=2026.10.07.4"></script>
+<script src="reader-enhance.js?v=2026.10.07.5"></script>
 </body>
 </html>
