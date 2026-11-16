@@ -611,4 +611,12 @@
       });
     };
   })();
+
+  /* ---------- 13) 離線快取：註冊 Service Worker（sw.js） ----------
+   * App 本體網路優先（更新即時）、離線時用快取；pdf.js 等固定版本函式庫快取優先。
+   * 只在 http(s) 下註冊（file:// 不支援）；失敗不影響任何功能。 */
+  (function(){
+    if(!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+    window.addEventListener('load',()=>{ try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} });
+  })();
 })();
