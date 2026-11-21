@@ -915,4 +915,58 @@
     st.textContent='.textLayer.flowtext h1,.textLayer.flowtext h2,.textLayer.flowtext h3,.textLayer.flowtext h4,.textLayer.flowtext h5,.textLayer.flowtext h6{text-align:left;text-align-last:left}';
     document.head.appendChild(st);
   })();
+  /* 19) 掃描書朗讀跳過 OCR 亂碼：掃描書的空白頁／插圖頁常被辨識成一堆碎片（「點」「:」「§ i aa」「RB a」），
+   *     朗讀會一個一個念出來，聽起來像當機。只有在「這一頁大部分都是亂碼」時才把亂碼句略過；
+   *     一般頁面上的短句（如 "No."、"Yes."）不受影響。整頁都是亂碼時，主程式會自動跳到下一頁。 */
+  (function(){
+    if(typeof window.collectReadSentences!=='function')return;
+    const orig=window.collectReadSentences;
+    const CJK=/[㐀-鿿豈-﫿぀-ヿ가-힯]/g, WORD=/[A-Za-zÀ-ɏ]{3,}/g;
+    const GOOD=/[㐀-鿿豈-﫿぀-ヿ가-힯]|[A-Za-zÀ-ɏ]{3,}/;
+    const isJunk=t=>{
+      t=String(t||'');
+      const content=(t.match(CJK)||[]).length+(t.match(WORD)||[]).length;   // 中文字數＋三個字母以上的英文字數
+      if(content<3)return true;                                             // 「點」「: 5」「RB a」「由 加」
+      const toks=t.split(/\s+/).filter(Boolean);
+      const good=toks.filter(w=>GOOD.test(w)).length;
+      return toks.length>=4&&good/toks.length<0.4;                          // 「還 . = I EX 3: a 加 20) B Rs」
+    };
+    window.__isJunkSentence=isJunk;
+    // 只處理「本程式自己 OCR 辨識出來」的頁面；PDF 原本就有的文字（如貼紙上的「5元」）照常朗讀
+    if(typeof window.injectOcrSpans==='function'){
+      const inj=window.injectOcrSpans;
+      window.injectOcrSpans=function(tl){ const r=inj.apply(this,arguments); try{ if(tl&&tl.querySelector('span'))tl.dataset.ocr='1'; }catch(e){} return r; };
+    }
+    const fromOcr=s=>{ const sp=s&&(s.startSpan||(s.spans&&s.spans[0])); return !!(sp&&sp.closest&&sp.closest('[data-ocr]')); };
+    window.collectReadSentences=async function(){
+      const out=await orig.apply(this,arguments);
+      try{
+        if(typeof docType==='undefined'||docType!=='pdf'||!Array.isArray(out))return out;
+        const ocr=out.filter(fromOcr); if(ocr.length<4)return out;
+        const junk=ocr.filter(s=>isJunk(s.text)).length;
+        if(junk>=3&&junk/ocr.length>=0.5)return out.filter(s=>!(fromOcr(s)&&isJunk(s.text)));
+      }catch(e){}
+      return out;
+    };
+  })();
+  /* 20) 手機上英文段落改靠左：手機一行只放得下二十幾個英文字母，左右對齊會把字與字之間撐出大空隙
+   *     （如 "Spatial      Language      in"）。只改「以英文為主」的段落、只在窄螢幕；中文段落維持左右對齊。
+   *     只影響對齊、不影響換行，所以分頁、書籤、劃記位置都不變。 */
+  (function(){
+    const st=document.createElement('style');
+    st.textContent='@media (max-width:600px){.textLayer.flowtext .lat{text-align:left;text-align-last:left}}';
+    document.head.appendChild(st);
+    if(typeof window.renderFlowLeaf!=='function')return;
+    const orig=window.renderFlowLeaf;
+    const latinMostly=t=>{
+      const lat=(t.match(/[A-Za-zÀ-ɏ]/g)||[]).length;
+      const cjk=(t.match(/[㐀-鿿豈-﫿぀-ヿ가-힯]/g)||[]).length;
+      return lat>=8&&lat>=cjk*1.5;   // 英文字母明顯多於中日韓字（中英對照的標題也算）；純中文段落維持左右對齊
+    };
+    window.renderFlowLeaf=function(){
+      const leaf=orig.apply(this,arguments);
+      try{ leaf.querySelectorAll('.textLayer.flowtext > p,.textLayer.flowtext > li,.textLayer.flowtext > blockquote').forEach(el=>{ if(latinMostly(el.textContent||''))el.classList.add('lat'); }); }catch(e){}
+      return leaf;
+    };
+  })();
 })();

@@ -3786,7 +3786,7 @@ $('helpBtn').onclick=()=>{ $('helpModal').style.display='flex'; };
 $('helpClose').onclick=()=>{ $('helpModal').style.display='none'; };
 $('helpModal').addEventListener('click',e=>{ if(e.target===$('helpModal'))$('helpModal').style.display='none'; });
 let rsT;window.addEventListener('resize',()=>{clearTimeout(rsT);rsT=setTimeout(()=>{
-  if(docType==='flow'&&flowRawBlocks.length){ repaginateFlow(); }
+  if(docType==='flow'&&flowRawBlocks.length){ const s=flowPageSize(); if(s.w!==curW||s.h!==curH)repaginateFlow(); }   // 頁面大小沒變就不重新分頁（重新分頁會中斷朗讀）
   else if(pdfDoc&&fitMode){ imgCache.clear();paintBook(); }
 },200);});
 
@@ -4807,6 +4807,6 @@ syncElderUi();
 syncControls();
 </script>
 <!-- 增強外掛（PWA 圖示＋朗讀完整單字高亮）；改版時保留這一行即可，邏輯都在外部檔案 -->
-<script src="reader-enhance.js?v=2026.10.07.6"></script>
+<script src="reader-enhance.js?v=2026.10.07.7"></script>
 </body>
 </html>
