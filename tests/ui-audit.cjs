@@ -181,6 +181,24 @@ async function featureChecks(browser,epub){
   await page.waitForFunction(()=>document.body.classList.contains('has-doc')&&document.getElementById('loading').style.display==='none'); await page.waitForTimeout(2200);
   if(await page.$('#coach'))issue('features','gesture guide appeared a second time');
   await ctx.close();
+  // EPUB whose chapter titles are styled paragraphs (no <h1>-<h3>) but which ships its own toc.ncx:
+  // the contents list must come from the book's own table of contents (was: only 1 entry for a 25-chapter book)
+  {
+    const z=new JSZip();z.file('mimetype','application/epub+zip');
+    z.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="OEBPS/book.opf"/></rootfiles></container>');
+    const chap=[1,2,3,4];
+    z.file('OEBPS/book.opf','<package><manifest><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'+chap.map(i=>'<item id="c'+i+'" href="text/c'+i+'.xhtml"/>').join('')+'</manifest><spine toc="ncx">'+chap.map(i=>'<itemref idref="c'+i+'"/>').join('')+'</spine></package>');
+    z.file('OEBPS/toc.ncx','<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>'+chap.map(i=>'<navPoint id="n'+i+'"><navLabel><text>第'+i+'章 樣式標題</text></navLabel><content src="text/c'+i+'.xhtml"/></navPoint>').join('')+'</navMap></ncx>');
+    chap.forEach(i=>z.file('OEBPS/text/c'+i+'.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><div><p class="titlebig">第'+i+'章 樣式標題</p>'+Array.from({length:12},()=>'<p>這是一段內文，用來測試目錄。The book uses styled paragraphs for titles.</p>').join('')+'</div></body></html>'));
+    ctx=await browser.newContext({viewport:{width:1280,height:800}}); page=await ctx.newPage();
+    page.on('pageerror',e=>issue('features','runtime error: '+e.message));
+    await page.goto(pathToFileURL(path.join(root,'index.html')).href); await page.waitForFunction(()=>typeof ReaderCore!=='undefined'); await page.waitForTimeout(500);
+    await page.locator('#fileInput').setInputFiles({name:'ncx-only.epub',mimeType:MIME.epub,buffer:await z.generateAsync({type:'nodebuffer'})});
+    await page.waitForFunction(()=>document.body.classList.contains('has-doc')&&document.getElementById('loading').style.display==='none'); await page.waitForTimeout(600);
+    const t=await page.evaluate(()=>({n:tocFlat.length,titles:tocFlat.map(x=>x.title),pages:tocFlat.map(x=>x.page)}));
+    if(t.n!==chap.length||t.pages.some((p,i)=>i&&p<=t.pages[i-1]))issue('features','EPUB built-in contents (toc.ncx) not used for the chapter list',t);
+    await ctx.close();
+  }
   console.log('feature checks done');
 }
 

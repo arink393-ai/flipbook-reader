@@ -969,4 +969,97 @@
       return leaf;
     };
   })();
+  /* 21) EPUB 目錄改用「書本自帶的目錄」：很多中文電子書（Kobo／calibre 轉檔）的章名用一般段落加樣式，
+   *     不是 <h1>~<h3> 標題，主程式只靠標題抓目錄，結果整本書的目錄只剩 1 項（例：《卡片盒筆記》25 章只顯示 1 項）。
+   *     這裡讀取 EPUB 內建的 toc.ncx（EPUB2）或 nav（EPUB3），在對應章節的第一段做記號，分頁後依記號產生目錄。
+   *     只有在「書本自帶目錄比標題抓到的更多」時才替換；標題本來就完整的書維持原樣。版面、文字都不變。 */
+  (function(){
+    if(typeof window.convertEpub!=='function'||typeof window.walkBlockNode!=='function'||typeof window.paginateBlocks!=='function')return;
+    const origConvert=window.convertEpub, origWalk=window.walkBlockNode, origPaginate=window.paginateBlocks;
+    let rec=null;   // 轉檔期間記錄：每一章從第幾段開始、章內各 id 在第幾段
+    const LEAF=/^(h[1-6]|p|blockquote|table)$/i;
+    window.walkBlockNode=function(n,blocks){
+      if(rec&&n&&n.ownerDocument){
+        let d=rec.docs[rec.docs.length-1];
+        if(!d||d.doc!==n.ownerDocument){ d={doc:n.ownerDocument,start:blocks.length,ids:{}}; rec.docs.push(d); }
+        if(n.nodeType===1){
+          const pos=blocks.length, put=id=>{ if(id&&!(id in d.ids))d.ids[id]=pos; };
+          put(n.id);
+          if(LEAF.test(n.tagName||'')) try{ n.querySelectorAll('[id]').forEach(e=>put(e.id)); }catch(e){}
+        }
+      }
+      return origWalk.apply(this,arguments);
+    };
+    const resolve=(base,href)=>{ try{ const u=new URL(href,'https://x/'+base); return {path:decodeURIComponent(u.pathname.replace(/^\//,'')),frag:decodeURIComponent((u.hash||'').slice(1))}; }catch(e){ return null; } };
+    async function readEpubToc(file){
+      const zip=await JSZip.loadAsync(file);
+      const P=x=>new DOMParser().parseFromString(x,'application/xml');
+      const c=zip.file('META-INF/container.xml'); if(!c)return null;
+      const rf=P(await c.async('text')).querySelector('rootfile'); const opfPath=rf&&rf.getAttribute('full-path'); if(!opfPath||!zip.file(opfPath))return null;
+      const opf=P(await zip.file(opfPath).async('text'));
+      const items={}; [...opf.getElementsByTagNameNS('*','item')].forEach(it=>{ items[it.getAttribute('id')]=it; });
+      const spine=[...opf.getElementsByTagNameNS('*','itemref')].map(r=>items[r.getAttribute('idref')]).filter(Boolean)
+        .map(it=>resolve(opfPath,it.getAttribute('href')||'')).filter(r=>r&&zip.file(r.path)).map(r=>r.path);
+      const entries=[];
+      const navItem=Object.values(items).find(it=>/\bnav\b/.test(it.getAttribute('properties')||''));
+      const navRes=navItem&&resolve(opfPath,navItem.getAttribute('href')||'');
+      if(navRes&&zip.file(navRes.path)){
+        const doc=new DOMParser().parseFromString(await zip.file(navRes.path).async('text'),'text/html');
+        const navs=[...doc.querySelectorAll('nav')];
+        const nav=navs.find(n=>/\btoc\b/.test(n.getAttribute('epub:type')||n.getAttribute('role')||''))||navs[0];
+        const walk=(ol,depth)=>{ [...(ol?ol.children:[])].forEach(li=>{ if((li.tagName||'').toLowerCase()!=='li')return;
+          const a=[...li.children].find(e=>/^(a|span)$/i.test(e.tagName)); const sub=[...li.children].find(e=>/^(ol|ul)$/i.test(e.tagName));
+          const href=a&&a.getAttribute('href'); const t=a&&(a.textContent||'').replace(/\s+/g,' ').trim();
+          if(href&&t){ const r=resolve(navRes.path,href); if(r)entries.push({title:t,depth,...r}); }
+          if(sub)walk(sub,depth+1); }); };
+        if(nav)walk(nav.querySelector('ol,ul'),0);
+      }
+      if(!entries.length){
+        const tocId=(opf.getElementsByTagNameNS('*','spine')[0]||{getAttribute:()=>null}).getAttribute('toc');
+        const ncxItem=(tocId&&items[tocId])||Object.values(items).find(it=>/ncx/i.test(it.getAttribute('media-type')||''));
+        const ncxRes=ncxItem&&resolve(opfPath,ncxItem.getAttribute('href')||'');
+        if(ncxRes&&zip.file(ncxRes.path)){
+          const ncx=P(await zip.file(ncxRes.path).async('text'));
+          const walk=(el,depth)=>{ [...el.children].forEach(np=>{ if(np.localName!=='navPoint')return;
+            const lab=[...np.children].find(e=>e.localName==='navLabel'), con=[...np.children].find(e=>e.localName==='content');
+            const t=lab&&(lab.textContent||'').replace(/\s+/g,' ').trim(), src=con&&con.getAttribute('src');
+            if(t&&src){ const r=resolve(ncxRes.path,src); if(r)entries.push({title:t,depth,...r}); }
+            walk(np,depth+1); }); };
+          const map=ncx.getElementsByTagNameNS('*','navMap')[0]; if(map)walk(map,0);
+        }
+      }
+      return {spine,entries};
+    }
+    window.convertEpub=async function(file){
+      rec={docs:[]};
+      let r; try{ r=await origConvert.apply(this,arguments); } finally{ var got=rec; rec=null; }
+      try{
+        const blocks=r&&r.blocks; if(!blocks||!blocks.length)return r;
+        const toc=await readEpubToc(file); if(!toc||toc.entries.length<2)return r;
+        // 只有在「實際有內容被讀進來的章節數」和書脊對得上時才能安全對應（否則寧可不動）
+        if(got.docs.length!==toc.spine.length)return r;
+        const byPath={}; toc.spine.forEach((p,i)=>{ byPath[p]={...got.docs[i],end:i+1<got.docs.length?got.docs[i+1].start:blocks.length}; });
+        toc.entries.forEach(e=>{
+          const ch=byPath[e.path]; if(!ch)return;
+          let at=(e.frag&&(e.frag in ch.ids))?ch.ids[e.frag]:ch.start;
+          if(at>=ch.end||at>=blocks.length)return;          // 空章節
+          const b=blocks[at]; (b.epubToc||(b.epubToc=[])).push({title:e.title,level:Math.min(2,e.depth)});
+        });
+      }catch(e){}
+      return r;
+    };
+    window.paginateBlocks=async function(){
+      const res=await origPaginate.apply(this,arguments);
+      try{
+        if(!res||res.cancelled||!Array.isArray(res.pages))return res;
+        const own=[], seen=new Set();
+        res.pages.forEach((blks,i)=>blks.forEach(b=>{
+          if(!b||!b.epubToc||seen.has(b.epubToc))return; seen.add(b.epubToc);   // 被切成兩頁的段落只算第一次出現
+          b.epubToc.forEach(t=>own.push({title:t.title,level:t.level,page:i+1}));
+        }));
+        if(own.length>=2&&own.length>(res.headingMap||[]).length) return {...res,headingMap:own};
+      }catch(e){}
+      return res;
+    };
+  })();
 })();
